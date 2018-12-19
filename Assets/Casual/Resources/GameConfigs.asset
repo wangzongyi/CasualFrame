@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 777138a78b9407e498c57184a95f4664, type: 3}
+  m_Name: GameConfigs
+  m_EditorClassIdentifier: 
+  webURL: https://www.google.com
+  extName: .unity3d
+  publishMode: 1
