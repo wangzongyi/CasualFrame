@@ -9,7 +9,7 @@ public class Singleton<T> where T : new()
     {
         if (m_instance == null)
         {
-            m_instance = new T();
+            m_instance = Activator.CreateInstance<T>();
             (m_instance as Singleton<T>).Init();
         }
         return m_instance;

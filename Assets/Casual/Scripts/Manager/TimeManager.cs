@@ -13,8 +13,8 @@ public class TimeManager : Singleton<TimeManager> {
     protected override void Init()
     {
 		m_calibratingServerTime = TimeParse.DateTime2Long(System.DateTime.Now);
-        Game.Instance().UpdateEvent += Update;
-        Game.Instance().ApplicationPause += OnApplicationPause;
+        GameContext.UpdateEvent += Update;
+        GameContext.ApplicationPause += OnApplicationPause;
     }
 
 	void Update ()

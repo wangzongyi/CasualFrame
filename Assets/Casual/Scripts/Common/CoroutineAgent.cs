@@ -17,7 +17,7 @@ public class CoroutineAgent
 
     public static Coroutine StartCoroutine(IEnumerator ie, MonoBehaviour behaviour = null)
     {
-        return (behaviour ?? Game.Instance()).StartCoroutine(ie);
+        return (behaviour ?? GameContext.Instance()).StartCoroutine(ie);
     }
 
     public static void StopCoroutine(IEnumerator ie, MonoBehaviour behaviour = null)
@@ -25,15 +25,15 @@ public class CoroutineAgent
         if (ie == null)
             return;
 
-        (behaviour ?? Game.Instance()).StopCoroutine(ie);
+        (behaviour ?? GameContext.Instance()).StopCoroutine(ie);
     }
 
     public static void StopCoroutine(Coroutine co, MonoBehaviour behaviour = null)
     {
-        if (co == null || (!behaviour && !Game.Instance()))
+        if (co == null || (!behaviour && !GameContext.Instance()))
             return;
 
-        (behaviour ?? Game.Instance()).StopCoroutine(co);
+        (behaviour ?? GameContext.Instance()).StopCoroutine(co);
     }
 
     public static Coroutine EndOfFrameOperation(System.Action operation, MonoBehaviour behaviour = null)
@@ -48,7 +48,7 @@ public class CoroutineAgent
 
     public static Coroutine DelayOperation(YieldInstruction delay, System.Action operation, MonoBehaviour behaviour = null)
     {
-        return (behaviour ?? Game.Instance()).StartCoroutine(DoDelayOperation(delay, operation));
+        return (behaviour ?? GameContext.Instance()).StartCoroutine(DoDelayOperation(delay, operation));
     }
 
     private static IEnumerator DoDelayOperation(YieldInstruction delay, System.Action operation)
@@ -62,7 +62,7 @@ public class CoroutineAgent
 
     public static Coroutine DelayOperation(MonoBehaviour behaviour, params KeyValuePair<YieldInstruction, System.Action>[] operations)
     {
-        return (behaviour ?? Game.Instance()).StartCoroutine(DelayOperation(operations));
+        return (behaviour ?? GameContext.Instance()).StartCoroutine(DelayOperation(operations));
     }
 
     private static IEnumerator DelayOperation(params KeyValuePair<YieldInstruction, System.Action>[] operations)
@@ -84,7 +84,7 @@ public class CoroutineAgent
 
     public static Coroutine WaitOperation(System.Func<bool> waitFor, System.Action operation, MonoBehaviour behaviour = null)
     {
-        return (behaviour ?? Game.Instance()).StartCoroutine(DoWaitOperation(waitFor, operation));
+        return (behaviour ?? GameContext.Instance()).StartCoroutine(DoWaitOperation(waitFor, operation));
     }
 
     private static IEnumerator DoWaitOperation(System.Func<bool> waitFor, System.Action operation = null)

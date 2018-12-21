@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -23,7 +22,7 @@ public class EditorUtils : Editor
                 TextureImporter importer = AssetImporter.GetAtPath(files[i]) as TextureImporter;
                 importer.textureType = TextureImporterType.Sprite;
 
-                Image tex = Image.FromFile(files[i]);
+                //Image tex = Image.FromFile(files[i]);
 
                 //int maxTextureSize = Mathf.Clamp(Mathf.Max(tex.Width, tex.Height), 32, 2048);
                 TextureImporterPlatformSettings androidSettings = new TextureImporterPlatformSettings();

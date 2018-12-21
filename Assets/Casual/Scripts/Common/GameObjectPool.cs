@@ -47,8 +47,8 @@ public class GameObjectPool
 
     public virtual void EnqueueAction(GameObject inst, Transform poolRoot)
     {
-        inst.transform.position = Vector3.one * 10000;
         inst.transform.SetParent(poolRoot, false);
+        inst.transform.position = Vector3.one * 10000;
     }
 
     /// <summary>

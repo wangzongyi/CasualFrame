@@ -93,15 +93,27 @@ public static class UnityUtils {
     /// <returns>byte[]</returns>
     public static byte[] FileToBytes(string fileUrl)
     {
-        using (FileStream fs = new FileStream(fileUrl, FileMode.OpenOrCreate, FileAccess.ReadWrite))
-        {
-            byte[] buffur = new byte[fs.Length];
-            using (BinaryWriter bw = new BinaryWriter(fs))
-            {
-                bw.Write(buffur);
-                bw.Close();
-            }
-            return buffur;
-        }
+        return File.ReadAllBytes(fileUrl);
+    }
+
+    public static void SetPositionX()
+    {
+
+    }
+
+    public static void SetPositionY()
+    {
+
+    }
+
+    public static void SetPositionZ()
+    {
+
+    }
+
+    public static void SetPositionXY(Transform trans, Vector2 vector2)
+    {
+        Vector3 tempVector3 = new Vector3(vector2.x, vector2.y, trans.position.z);
+        trans.position = tempVector3;
     }
 }

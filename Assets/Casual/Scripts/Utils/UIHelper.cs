@@ -8,7 +8,7 @@ public static class UIHelper
 {
     public static void SetActive(this Transform trans, bool isActive)
     {
-        if(trans)
+        if (trans)
         {
             SetActive(trans.gameObject, isActive);
         }
@@ -16,7 +16,7 @@ public static class UIHelper
 
     public static void SetActive(this Component comp, bool isActive)
     {
-        if(comp)
+        if (comp)
         {
             SetActive(comp.gameObject, isActive);
         }
@@ -24,7 +24,7 @@ public static class UIHelper
 
     public static void SetActive(GameObject obj, bool isActive)
     {
-        if(obj && obj.activeSelf != isActive)
+        if (obj && obj.activeSelf != isActive)
         {
             obj.SetActive(isActive);
         }
@@ -169,6 +169,6 @@ public static class UIHelper
 
     public static void SetText(this Text text, string format, params object[] args)
     {
-        text.text = string.Format(format, args);
+        text.text = string.Format(format ?? "", args);
     }
 }

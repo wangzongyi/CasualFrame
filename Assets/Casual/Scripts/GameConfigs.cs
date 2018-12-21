@@ -13,9 +13,9 @@ public enum PublishMode
 public class GameConfigs : ScriptableObject
 {
     public const string CONST_VALUE_PATH = "GameConfigs";
-    public const string CONST_VALUE_ASSET_PATH = "Assets/Resources/" + CONST_VALUE_PATH + ".asset";
+    public const string CONST_VALUE_ASSET_PATH = "Assets/Casual/Resources/" + CONST_VALUE_PATH + ".asset";
 
-    public static Vector3 DISABLE_POSITION = Vector3.one * 10000;
+    public static Vector3 DISABLE_POSITION = new Vector3(10000f, 0f, 0f);
 
     [SerializeField]
     private string webURL = "";
@@ -26,7 +26,7 @@ public class GameConfigs : ScriptableObject
     private string extName = ".unity3d";
     public static string ExtName { get { return Instance.extName; } }                   //素材扩展名
     public static string AssetPathInfoName = "AssetPathInfo"; //x路径的素材所对应的Bundle
-    public static string AssetRoot = "Assets/ttpa";
+    public static string AssetRoot = "Assets/Casual/Bundle";
 
     [SerializeField]
     private PublishMode publishMode = PublishMode.Debug;

@@ -127,102 +127,13 @@ namespace UnityEditor.UI
             PlaceUIElementRoot(go, menuCommand);
         }
 
-        [MenuItem("GameObject/UI/Raw Image", false, 2003)]
+        [MenuItem("GameObject/UI/Raw Image", true, 2004)]
         static public void AddRawImage(MenuCommand menuCommand)
         {
             GameObject go = DefaultControls.CreateRawImage(GetStandardResources());
             go.GetComponent<Graphic>().raycastTarget = false;
             PlaceUIElementRoot(go, menuCommand);
         }
-
-        // Controls
-
-        // Button and toggle are controls you just click on.
-
-        [MenuItem("GameObject/UI/Button", false, 2030)]
-        static public void AddButton(MenuCommand menuCommand)
-        {
-            GameObject go = DefaultControls.CreateButton(GetStandardResources());
-            PlaceUIElementRoot(go, menuCommand);
-        }
-
-        [MenuItem("GameObject/UI/Toggle", false, 2031)]
-        static public void AddToggle(MenuCommand menuCommand)
-        {
-            GameObject go = DefaultControls.CreateToggle(GetStandardResources());
-            PlaceUIElementRoot(go, menuCommand);
-        }
-
-        // Slider and Scrollbar modify a number
-
-        [MenuItem("GameObject/UI/Slider", false, 2033)]
-        static public void AddSlider(MenuCommand menuCommand)
-        {
-            GameObject go = DefaultControls.CreateSlider(GetStandardResources());
-            PlaceUIElementRoot(go, menuCommand);
-        }
-
-        [MenuItem("GameObject/UI/Scrollbar", false, 2034)]
-        static public void AddScrollbar(MenuCommand menuCommand)
-        {
-            GameObject go = DefaultControls.CreateScrollbar(GetStandardResources());
-            PlaceUIElementRoot(go, menuCommand);
-        }
-
-        // More advanced controls below
-
-        [MenuItem("GameObject/UI/Dropdown", false, 2035)]
-        static public void AddDropdown(MenuCommand menuCommand)
-        {
-            GameObject go = DefaultControls.CreateDropdown(GetStandardResources());
-            PlaceUIElementRoot(go, menuCommand);
-        }
-
-        [MenuItem("GameObject/UI/Input Field", false, 2036)]
-        public static void AddInputField(MenuCommand menuCommand)
-        {
-            GameObject go = DefaultControls.CreateInputField(GetStandardResources());
-            PlaceUIElementRoot(go, menuCommand);
-        }
-
-        // Containers
-
-        [MenuItem("GameObject/UI/Canvas", false, 2060)]
-        static public void AddCanvas(MenuCommand menuCommand)
-        {
-            var go = CreateNewUI();
-            GameObjectUtility.SetParentAndAlign(go, menuCommand.context as GameObject);
-            if (go.transform.parent as RectTransform)
-            {
-                RectTransform rect = go.transform as RectTransform;
-                rect.anchorMin = Vector2.zero;
-                rect.anchorMax = Vector2.one;
-                rect.anchoredPosition = Vector2.zero;
-                rect.sizeDelta = Vector2.zero;
-            }
-            Selection.activeGameObject = go;
-        }
-
-        [MenuItem("GameObject/UI/Panel", false, 2061)]
-        static public void AddPanel(MenuCommand menuCommand)
-        {
-            GameObject go = DefaultControls.CreatePanel(GetStandardResources());
-            PlaceUIElementRoot(go, menuCommand);
-
-            // Panel is special, we need to ensure there's no padding after repositioning.
-            RectTransform rect = go.GetComponent<RectTransform>();
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = Vector2.zero;
-        }
-
-        [MenuItem("GameObject/UI/Scroll View", false, 2062)]
-        static public void AddScrollView(MenuCommand menuCommand)
-        {
-            GameObject go = DefaultControls.CreateScrollView(GetStandardResources());
-            PlaceUIElementRoot(go, menuCommand);
-        }
-
-        // Helper methods
 
         static public GameObject CreateNewUI()
         {
@@ -238,13 +149,6 @@ namespace UnityEditor.UI
             // if there is no event system add one...
             CreateEventSystem(false);
             return root;
-        }
-
-        [MenuItem("GameObject/UI/Event System", false, 2100)]
-        public static void CreateEventSystem(MenuCommand menuCommand)
-        {
-            GameObject parent = menuCommand.context as GameObject;
-            CreateEventSystem(true, parent);
         }
 
         private static void CreateEventSystem(bool select)
