@@ -2,68 +2,99 @@
 using System;
 using Utils;
 
-public class TimeManager : Singleton<TimeManager> {
+public class TimeManager : Singleton<TimeManager>
+{
+    const int TIME_PASS_INTERVAL = 1;
+    const int TICKS_PER_SECOND = 10000000;
 
-	private long m_time;
-	private long m_calibratingServerTime;
-	private float m_calibratingGameTime;
+    private float m_lastPassTime;
+    private long m_calibrateServerTime;
+    private long m_calibrateNativeTime;
 
-	private bool m_inited;
+    private bool m_inited;
+
+    public long ServerTime { get { return m_calibrateServerTime + NowTimeStamp() - m_calibrateNativeTime; } }
+    public static DateTime UtcStart = new DateTime(1970, 1, 1, 0, 0, 0, 0);
+
+    public DateTime ServerDateTime
+    {
+        get
+        {
+            return ToDateTime(ServerTime);
+        }
+    }
 
     protected override void Init()
     {
-		m_calibratingServerTime = TimeParse.DateTime2Long(System.DateTime.Now);
+        m_lastPassTime = 0;
+        m_calibrateNativeTime = NowTimeStamp();
+        m_calibrateServerTime = m_calibrateNativeTime;
+
+        EventManager.Instance().AddEvent<long>(EventEnum.CalibrateTime, this, OnCalibrateTime);
+
         GameContext.UpdateEvent += Update;
         GameContext.ApplicationPause += OnApplicationPause;
     }
 
-	void Update ()
-	{
-		m_time = m_calibratingServerTime + (int) (Time.realtimeSinceStartup - m_calibratingGameTime);
-        if (Time.frameCount % 10 == 0)
+    void Update()
+    {
+        if(Time.time - m_lastPassTime > TIME_PASS_INTERVAL)
         {
-            EventManager.Instance().Brocast("time_pass", m_time);
+            m_lastPassTime = Time.time;
+            EventManager.Instance().Brocast(EventEnum.TimePass, ServerTime);
         }
-	}
+    }
 
-	void OnApplicationPause(bool pauseStatus)
-	{
-		if (!pauseStatus)
-		{
-		}
-	}
+    void OnApplicationPause(bool pauseStatus)
+    {
+        if (!pauseStatus)
+        {
+            CalibrateTime();
+        }
+    }
 
-	public System.DateTime ServerTime
-	{
-		get
-		{
-			return TimeParse.Long2DateTime(m_time);
-		}
-	}
+    void CalibrateTime()
+    {
+        //Network.RequestHeartBeat()
+    }
 
-	public long LongServerTime
-	{
-		get
-		{
-			return m_time;
-		}
-	}
+    /// <summary>
+    /// 时间校准
+    /// </summary>
+    /// <param name="time"></param>
+    public void OnCalibrateTime(long time)
+    {
+        m_calibrateServerTime = time;
+        m_calibrateNativeTime = NowTimeStamp();
 
-	public void TimeCalibrate(long time)
-	{
-		m_time = m_calibratingServerTime = time;
-		m_calibratingGameTime = Time.realtimeSinceStartup;
+        m_inited = true;
+    }
 
-		m_inited = true;
-	}
+    public TimeSpan TimeSpan(long targetTime)
+    {
+        return new TimeSpan((targetTime - ServerTime) * TICKS_PER_SECOND);
+    }
 
-	public System.TimeSpan TimeSpan(long targetTime)
-	{
-		return TimeParse.TimeSpan(targetTime - m_time);
-	}
+    public long CompareTime(long targetTime)
+    {
+        return ServerTime - targetTime;
+    }
 
-	public long CompareTime(long targetTime)
-	{
-		return m_time - targetTime;
-	}
+    public static long NowTimeStamp()
+    {
+        return ToTimeStamp(DateTime.UtcNow);
+    }
+
+    public static long ToTimeStamp(DateTime time)
+    {
+        TimeSpan ts = time - UtcStart;
+        return Convert.ToInt64(ts.TotalSeconds);
+    }
+
+    public static DateTime ToDateTime(long timeStamp)
+    {
+        DateTime dtStart = TimeZone.CurrentTimeZone.ToLocalTime(UtcStart);
+        TimeSpan toNow = new TimeSpan(timeStamp * TICKS_PER_SECOND);
+        return dtStart.Add(toNow);
+    }
 }

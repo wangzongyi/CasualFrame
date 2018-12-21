@@ -15,6 +15,9 @@ public class GameConfigs : ScriptableObject
     public const string CONST_VALUE_PATH = "GameConfigs";
     public const string CONST_VALUE_ASSET_PATH = "Assets/Casual/Resources/" + CONST_VALUE_PATH + ".asset";
 
+    public const int TRY_DOWNLOAD_TIMES = 3;
+    public const int DDOWNLOAD_TIMEOUT = 30;
+
     public static Vector3 DISABLE_POSITION = new Vector3(10000f, 0f, 0f);
 
     [SerializeField]

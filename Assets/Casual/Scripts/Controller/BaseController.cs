@@ -20,7 +20,7 @@ public class BaseController<T> : Singleton<T> where T : new()
         EventManager.Instance().AddEvent(eventType, this, method);
     }
 
-    protected void AddEvent<T>(string eventType, Action<T> method)
+    protected void AddEvent<T1>(string eventType, Action<T1> method)
     {
         EventManager.Instance().AddEvent(eventType, this, method);
     }
