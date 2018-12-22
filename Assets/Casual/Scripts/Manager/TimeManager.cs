@@ -1,33 +1,32 @@
 ﻿using UnityEngine;
 using System;
-using Utils;
 
 public class TimeManager : Singleton<TimeManager>
 {
     const int TIME_PASS_INTERVAL = 1;
     const int TICKS_PER_SECOND = 10000000;
 
+    public static long LOCAL_TIME_START = 62135625600; // 服务器所在时区的1970/01/01 00:00:00
+    public static long NowTimeStamp { get { return ToUnixTimeStamp(DateTime.Now); } }
+
     private float m_lastPassTime;
     private long m_calibrateServerTime;
     private long m_calibrateNativeTime;
 
-    private bool m_inited;
-
-    public long ServerTime { get { return m_calibrateServerTime + NowTimeStamp() - m_calibrateNativeTime; } }
-    public static DateTime UtcStart = new DateTime(1970, 1, 1, 0, 0, 0, 0);
+    public long ServerTime { get { return m_calibrateServerTime - m_calibrateNativeTime + NowTimeStamp; } }
 
     public DateTime ServerDateTime
     {
         get
         {
-            return ToDateTime(ServerTime);
+            return ToLocalDateTime(ServerTime);
         }
     }
 
     protected override void Init()
     {
         m_lastPassTime = 0;
-        m_calibrateNativeTime = NowTimeStamp();
+        m_calibrateNativeTime = NowTimeStamp;
         m_calibrateServerTime = m_calibrateNativeTime;
 
         EventManager.Instance().AddEvent<long>(EventEnum.CalibrateTime, this, OnCalibrateTime);
@@ -38,7 +37,7 @@ public class TimeManager : Singleton<TimeManager>
 
     void Update()
     {
-        if(Time.time - m_lastPassTime > TIME_PASS_INTERVAL)
+        if (Time.time - m_lastPassTime > TIME_PASS_INTERVAL)
         {
             m_lastPassTime = Time.time;
             EventManager.Instance().Brocast(EventEnum.TimePass, ServerTime);
@@ -53,6 +52,9 @@ public class TimeManager : Singleton<TimeManager>
         }
     }
 
+    /// <summary>
+    /// 可在心跳和从后台返回时校准时间戳
+    /// </summary>
     void CalibrateTime()
     {
         //Network.RequestHeartBeat()
@@ -61,13 +63,11 @@ public class TimeManager : Singleton<TimeManager>
     /// <summary>
     /// 时间校准
     /// </summary>
-    /// <param name="time"></param>
-    public void OnCalibrateTime(long time)
+    /// <param name="serverTimeStamp"></param>
+    public void OnCalibrateTime(long serverTimeStamp)
     {
-        m_calibrateServerTime = time;
-        m_calibrateNativeTime = NowTimeStamp();
-
-        m_inited = true;
+        m_calibrateServerTime = serverTimeStamp;
+        m_calibrateNativeTime = NowTimeStamp;
     }
 
     public TimeSpan TimeSpan(long targetTime)
@@ -80,21 +80,23 @@ public class TimeManager : Singleton<TimeManager>
         return ServerTime - targetTime;
     }
 
-    public static long NowTimeStamp()
+    /// <summary>
+    /// 将服务器所在时区的时间类型转化为时间戳
+    /// </summary>
+    /// <param name="localDateTime"></param>
+    /// <returns></returns>
+    public static long ToUnixTimeStamp(DateTime localDateTime)
     {
-        return ToTimeStamp(DateTime.UtcNow);
+        return localDateTime.Ticks / TICKS_PER_SECOND - LOCAL_TIME_START;
     }
 
-    public static long ToTimeStamp(DateTime time)
+    /// <summary>
+    /// 将服务器所在时区的时间戳转为时间类型
+    /// </summary>
+    /// <param name="localTimeStamp"></param>
+    /// <returns></returns>
+    public static DateTime ToLocalDateTime(long localTimeStamp)
     {
-        TimeSpan ts = time - UtcStart;
-        return Convert.ToInt64(ts.TotalSeconds);
-    }
-
-    public static DateTime ToDateTime(long timeStamp)
-    {
-        DateTime dtStart = TimeZone.CurrentTimeZone.ToLocalTime(UtcStart);
-        TimeSpan toNow = new TimeSpan(timeStamp * TICKS_PER_SECOND);
-        return dtStart.Add(toNow);
+        return new DateTime((localTimeStamp + LOCAL_TIME_START) * TICKS_PER_SECOND);
     }
 }
