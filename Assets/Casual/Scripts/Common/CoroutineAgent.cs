@@ -22,7 +22,7 @@ public class CoroutineAgent
 
     public static void StopCoroutine(IEnumerator ie, MonoBehaviour behaviour = null)
     {
-        if (ie == null)
+        if (ie == null || GameContext.IsApplicationQuit)
             return;
 
         (behaviour ?? GameContext.Instance()).StopCoroutine(ie);
@@ -30,7 +30,7 @@ public class CoroutineAgent
 
     public static void StopCoroutine(Coroutine co, MonoBehaviour behaviour = null)
     {
-        if (co == null || (!behaviour && !GameContext.Instance()))
+        if (co == null || GameContext.IsApplicationQuit)
             return;
 
         (behaviour ?? GameContext.Instance()).StopCoroutine(co);

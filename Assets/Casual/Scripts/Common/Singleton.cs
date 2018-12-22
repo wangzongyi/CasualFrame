@@ -26,11 +26,11 @@ public class Singleton<T> where T : new()
 public abstract class MonoSingleton<T> : MonoBehaviour where T : MonoSingleton<T>
 {
     private static T m_instance = null;
-    protected static bool IsApplicationQuit = false;
+    public static bool IsApplicationQuit = false;
 
     public static T Instance()
     {
-        if (m_instance == null)
+        if (m_instance == null && !IsApplicationQuit)
         {
             m_instance = GameObject.FindObjectOfType(typeof(T)) as T;
             if (m_instance == null)
@@ -55,7 +55,6 @@ public abstract class MonoSingleton<T> : MonoBehaviour where T : MonoSingleton<T
 
     private void OnApplicationQuit()
     {
-        m_instance = null;
         IsApplicationQuit = true;
     }
 }
