@@ -1,21 +1,42 @@
 ﻿using Google.Protobuf;
-using System.Collections;
-using System.Collections.Generic;
+using Google.Protobuf.Collections;
 using UnityEngine;
 
-public class BaseConfigManager<T, K, V> : Singleton<T> where T : new() where V : IMessage
+public class BaseConfigManager<T, K, V> : Singleton<T> where T : BaseConfigManager<T, K, V>, new() where V : IMessage
 {
-    protected string assetName;
-    public Dictionary<K, V> map;
+    public MapField<K, V> MapField;
 
-    public void LoadConfig()
+    /// <summary>
+    /// 配置加载同步方法
+    /// </summary>
+    public virtual void LoadConfig()
     {
+        string assetName = string.Format("ClientProto/{0}", typeof(V).Name.ToLower());
         TextAsset asset = Resources.Load<TextAsset>(assetName);
-        map = Proto.GoodsInfoMap.Descriptor.Parser.ParseFrom(asset.bytes) as Dictionary<K, V>;
+        Deserialize(asset.bytes);
+        AfterDeserialize();
     }
+
+    /// <summary>
+    /// 配置加载异步方法
+    /// </summary>
+    /// <returns></returns>
+    public Coroutine LoadConfigAsync()
+    {
+        string assetName = typeof(V).ToString().ToLower();
+        return AssetBundleLoader.Instance().LoadAsset<TextAsset>(assetName, assetName, (asset)=>
+        {
+            Deserialize(asset.bytes);
+            AfterDeserialize();
+        });
+    }
+
+    public virtual void Deserialize(byte[] bytes){}
+
+    public virtual void AfterDeserialize(){}
 
     public V GetItem(K id)
     {
-        return map != null && map.ContainsKey(id) ? map[id] : default(V);
+        return MapField != null && MapField.ContainsKey(id) ? MapField[id] : default(V);
     }
 }

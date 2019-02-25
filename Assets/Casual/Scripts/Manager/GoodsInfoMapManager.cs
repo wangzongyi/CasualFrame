@@ -1,12 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using Proto;
+﻿using Proto;
 
 public class GoodsInfoMapManager : BaseConfigManager<GoodsInfoMapManager, uint, GoodsInfo>
 {
-    public GoodsInfoMapManager()
+    public override void Deserialize(byte[] bytes)
     {
-        assetName = "ClientProto/goodsinfo";
+        MapField = GoodsInfoMap.Parser.ParseFrom(bytes).Items;
     }
 }
