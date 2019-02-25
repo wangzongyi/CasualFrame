@@ -17,14 +17,10 @@ public class GameContext : MonoSingleton<GameContext>
         UIManager.Instance().Open<UIBackground>("UIBackground");
         UIManager.Instance().Open<UIMain>("UIMain");
 
-        TextAsset asset = Resources.Load<TextAsset>("ClientProto/GoodsInfo");
-        Debug.Log(asset.bytes.Length);
         GoodsInfoMapManager.Instance().LoadConfig();
+        Proto.GoodsInfo info = GoodsInfoMapManager.Instance().GetItem(10999);
 
-        foreach (var goodsInfo in GoodsInfoMapManager.Instance().map)
-        {
-            Debug.Log(goodsInfo.Key + "|" + goodsInfo.Value.Name);
-        }
+        Debug.Log(info.GoodsId + "|" + info.ToString());
     }
 
     void Update()

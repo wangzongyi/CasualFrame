@@ -191,10 +191,10 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
         return _dependencies[abName];
     }
 
-    public void LoadAssetBundle(string abName, Action<AssetBundle> action = null)
+    public Coroutine LoadAssetBundle(string abName, Action<AssetBundle> action = null)
     {
         if (string.IsNullOrEmpty(abName))
-            return;
+            return null;
 
         abName = GetFinalABName(abName);
 
@@ -203,10 +203,10 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
             sharpBundleFunc = action
         };
 
-        LoadAssetBundle(abName, request);
+        return LoadAssetBundle(abName, request);
     }
 
-    private void LoadAssetBundle(string abName, AssetLoader assetLoader)
+    private Coroutine LoadAssetBundle(string abName, AssetLoader assetLoader)
     {
         AssetBundleInfo assetBundleInfo = null;
 
@@ -215,7 +215,7 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
             assetBundleInfo.ReferencedCount++;
             assetLoader.LoadComplete(assetBundleInfo.AssetBundle);
             assetLoader.Dispose();
-            return;
+            return null;
         }
 
         List<AssetLoader> requests = null;
@@ -226,12 +226,13 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
                 assetLoader
             };
             _loadRequests.Add(abName, requests);
-            CoroutineAgent.StartCoroutine(OnLoadAssetBundle(abName, requests));
+            return CoroutineAgent.StartCoroutine(OnLoadAssetBundle(abName, requests));
         }
         else
         {
             requests.Add(assetLoader);
         }
+        return null;
     }
 
     IEnumerator OnLoadAssetBundle(string abName, List<AssetLoader> requests)
@@ -324,9 +325,16 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
         LoadAsset<T>(abName, assetName, callback);
     }
 
-    public void LoadAsset<T>(string abName, string assetName, Action<T> callback = null) where T : UObject
+    /// <summary>
+    /// 异步加载资源方法，推荐此方法
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="abName"></param>
+    /// <param name="assetName"></param>
+    /// <param name="callback"></param>
+    public Coroutine LoadAsset<T>(string abName, string assetName, Action<T> callback = null) where T : UObject
     {
-        LoadAsset<T>(abName, new string[] { assetName }, (objs) =>
+        return LoadAsset<T>(abName, new string[] { assetName }, (objs) =>
         {
             if (objs != null && objs.Length > 0 && callback != null)
             {
@@ -338,10 +346,10 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
     /// <summary>
     /// 载入素材
     /// </summary>
-    public void LoadAsset<T>(string abName, string[] assetNames, Action<UObject[]> action = null) where T : UObject
+    public Coroutine LoadAsset<T>(string abName, string[] assetNames, Action<UObject[]> action = null) where T : UObject
     {
         if (string.IsNullOrEmpty(abName))
-            return;
+            return null;
 
         abName = GetFinalABName(abName);
 
@@ -352,7 +360,7 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
             sharpFunc = action
         };
 
-        LoadAssetBundle(abName, request);
+        return LoadAssetBundle(abName, request);
     }
 
     AssetBundleInfo GetLoadedAssetBundle(string abName)
