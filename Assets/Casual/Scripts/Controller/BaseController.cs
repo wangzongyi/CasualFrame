@@ -10,7 +10,7 @@ public class BaseController<T> : Singleton<T> where T : new()
         RegisterEvents();
     }
 
-    protected virtual void RegisterEvents()
+    public virtual void RegisterEvents()
     {
 
     }

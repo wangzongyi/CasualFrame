@@ -6,6 +6,16 @@ using Object = UnityEngine.Object;
 
 public class BaseBehaviour : MonoBehaviour
 {
+    private void Awake()
+    {
+        VirtualAwake();
+    }
+
+    protected virtual void VirtualAwake()
+    {
+        RegisterEvents();
+    }
+
     HashSet<GameObject> _objectPool = new HashSet<GameObject>();
 
     protected void AddEvent(string eventType, Action method)
@@ -30,6 +40,11 @@ public class BaseBehaviour : MonoBehaviour
     protected void AddEvent<T1, T2, T3, T4>(string eventType, Action<T1, T2, T3, T4> method)
     {
         EventManager.Instance().AddEvent(eventType, this, method);
+    }
+
+    protected virtual void RegisterEvents()
+    {
+
     }
 
     protected void RemoveEvents()

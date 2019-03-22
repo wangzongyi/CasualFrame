@@ -146,8 +146,7 @@ public class ResourcesManager : Singleton<ResourcesManager>
 
         if (_loadedAssetPool[path].LoadedCount > 0)
         {
-            if (callback != null)
-                callback(_loadedAssetPool[path].LoadedObject as T);
+            callback?.Invoke(_loadedAssetPool[path].LoadedObject as T);
         }
         else
         {

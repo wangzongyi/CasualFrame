@@ -30,8 +30,9 @@ public class UIBase : BaseBehaviour
     protected Vector3 lastPosition;
     protected bool isVisible = true;
 
-    private void Awake()
+    protected override void VirtualAwake()
     {
+        base.VirtualAwake();
         InitComponent();
     }
 
