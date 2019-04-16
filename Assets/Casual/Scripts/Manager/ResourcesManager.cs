@@ -128,7 +128,7 @@ public class ResourcesManager : Singleton<ResourcesManager>
     public void LoadAsync<T>(string path, Action<T> callback, ExtensionType rType = ExtensionType.prefab, object observer = null) where T : UObject
     {
         path = string.Format("{0}/{1}.{2}", GameConfigs.AssetRoot, path, rType);
-        LoadAsyncWithFullPath<T>(path, callback);
+        LoadAsyncWithFullPath<T>(path, callback, observer);
     }
 
     /// <summary>
