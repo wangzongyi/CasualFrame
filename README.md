@@ -4,6 +4,4 @@
 1、Unity AssetBundle 加载
 2、对象池实现
 3、基础UI框架实现
-4、GooglePlay支付
-5、UnityAds
-6、常用类封装
+4、常用类封装
