@@ -1,17 +1,60 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+
+public class UISession : IDisposable
+{
+    public string PrefabName;
+    public Action Callback;
+    public object Data;
+    public Type PageType;
+
+    public void Init(Type pageType, object data, string prefabName, Action callback)
+    {
+        PageType = pageType;
+        Data = data;
+        PrefabName = prefabName;
+        Callback = callback;
+    }
+
+    public void Dispose()
+    {
+        PageType = null;
+        PrefabName = null;
+        Callback = null;
+        Data = null;
+    }
+}
 
 public class UIManager : MonoSingleton<UIManager>
 {
     [SerializeField]
-    Canvas[] layerRoot = new Canvas[(int)UILayerType.MAX];
+    private Camera uiCamera;
+    public static Camera UICamera { get { return Instance().uiCamera; } }
 
-    HashSet<Type> _loading = new HashSet<Type>();
-    Dictionary<Type, UIBase> _allPages = new Dictionary<Type, UIBase>();
+    [SerializeField]
+    private Canvas[] layerRoot = new Canvas[(int)UILayerType.MAX];
 
-    const string UI_PREFAB_PATH = "{0}/Prefab/UI/{1}.prefab";
+    private HashSet<Type> _loading = new HashSet<Type>();
+    private Dictionary<Type, UIBase> _allPages = new Dictionary<Type, UIBase>();
+    //private Queue<UIBase>
+    private UISession currentSession;
+    private Queue<UISession> backSequence = new Queue<UISession>();
+
+    private const string UI_PREFAB_PATH = "{0}/Prefab/UI/{1}.prefab";
+
+    public override void Init()
+    {
+        ObjectPoolManager.Instance().RegistCreater<UISession>(() =>
+        {
+            return new UISession();
+        });
+    }
+
+    public void Open<T>(Action callback = null) where T : UIBase
+    {
+        Open<T>(typeof(T).Name, callback);
+    }
 
     public void Open<T>(string prefabName) where T : UIBase
     {
@@ -26,56 +69,113 @@ public class UIManager : MonoSingleton<UIManager>
     public void Open<T>(string prefabName, object data, Action callback = null) where T : UIBase
     {
         Type pageType = typeof(T);
+        Open(pageType, prefabName, data, callback, true);
+    }
+
+    private void Open(Type pageType, string prefabName, object data, Action callback = null, bool pushCurrentToBack = true)
+    {
         if (IsExist(pageType))
         {
-            _allPages[pageType].Init(data);
-            _allPages[pageType].Open(callback);
+            _allPages[pageType].InitData(data);
+            _allPages[pageType].OnOpen(callback);
         }
         else if (!_loading.Contains(pageType))
         {
             _loading.Add(pageType);
             prefabName = string.Format(UI_PREFAB_PATH, GameConfigs.AssetRoot, prefabName);
-            ResourcesManager.Instance().LoadAsyncWithFullPath<GameObject>(prefabName, (prefab) =>
+            ResourcesManager.LoadAsyncWithFullPath<GameObject>(prefabName, (prefab) =>
             {
-                LoadDone<T>(prefab, prefabName, data, callback);
+                LoadDone(pageType, prefab, prefabName, data, callback, pushCurrentToBack);
             });
         }
     }
 
-    void LoadDone<T>(GameObject prefab, string prefabName, object data, Action callback) where T : UIBase
-    {
-        Type pageType = typeof(T);
-
-        GameObject uiInstance = GameObjectPoolManager.Instance().FetchObject<UIPool>(prefab);
-        UIBase uiPage = uiInstance.GetComponent<T>() ?? uiInstance.AddComponent<T>();
-
-        uiInstance.transform.SetParent(layerRoot[(int)uiPage.LayerType].transform, false);
-
-        uiPage.Init(data, prefabName);
-        uiPage.Open(callback);
-
-        _allPages[pageType] = uiPage;
-        _loading.Remove(pageType);
-    }
-
-    public void Close<T>() where T : UIBase
-    {
-        Type pageType = typeof(T);
-        Close(pageType);
-    }
-
-    public void Close(Type pageType)
+    private void OpenByFullPath(Type pageType, string fullPrefabName, object data, Action callback = null, bool pushCurrentToBack = true)
     {
         if (IsExist(pageType))
         {
-            _allPages[pageType].Close();
+            _allPages[pageType].InitData(data);
+            _allPages[pageType].OnOpen(callback);
+        }
+        else if (!_loading.Contains(pageType))
+        {
+            _loading.Add(pageType);
+            ResourcesManager.LoadAsyncWithFullPath<GameObject>(fullPrefabName, (prefab) =>
+            {
+                LoadDone(pageType, prefab, fullPrefabName, data, callback, pushCurrentToBack);
+            });
+        }
+    }
+
+    private void LoadDone(Type pageType, GameObject prefab, string fullPrefabName, object data, Action callback, bool pushCurrentToBack)
+    {
+        GameObject uiInstance = GameObjectPoolManager.Instance().FetchObject<UIPool>(prefab);
+        UIBase uiPage = (UIBase)(uiInstance.GetComponent(pageType) ?? uiInstance.AddComponent(pageType));
+
+        uiInstance.transform.SetParent(layerRoot[(int)uiPage.LayerType].transform, false);
+
+        uiPage.InitData(data);
+        uiPage.InitPrefabName(fullPrefabName);
+
+        _allPages[pageType] = uiPage;
+        _loading.Remove(pageType);
+
+        uiPage.OnOpen(callback);
+
+        if (uiPage.LayerType == UILayerType.NORMAL)
+        {
+            if (currentSession != null && IsExist(currentSession.PageType))
+            {
+                Type currentPageType = currentSession.PageType;
+
+                if (GetPage(currentPageType).NeedPush && pushCurrentToBack)
+                {
+                    backSequence.Enqueue(currentSession);
+                }
+                else
+                {
+                    ObjectPoolManager.Instance().ReturnObject(currentSession);
+                }
+                Close(currentPageType);
+            }
+
+            UISession uisession = ObjectPoolManager.Instance().FetchObject<UISession>();
+            uisession.Init(pageType, data, fullPrefabName, callback);
+
+            currentSession = uisession;
+        }
+    }
+
+    /// <summary>
+    /// 弹出队列中界面
+    /// </summary>
+    public void UIBackSequence()
+    {
+        if(backSequence.Count > 0)
+        {
+            UISession session = backSequence.Dequeue();
+            OpenByFullPath(session.PageType, session.PrefabName, session.Data, session.Callback, false);
+        }
+    }
+
+    public void Close<T>(Action callback = null) where T : UIBase
+    {
+        Close(typeof(T), callback);
+    }
+
+    public void Close(Type pageType, Action callback = null)
+    {
+        if (IsExist(pageType))
+        {
+            GetPage(pageType).CloseAction(callback);
+            Remove(pageType);
         }
     }
 
     public void Show<T>() where T : UIBase
     {
         Type pageType = typeof(T);
-        if(IsExist(pageType))
+        if (IsExist(pageType))
         {
             _allPages[typeof(T)].Show();
         }
@@ -109,15 +209,12 @@ public class UIManager : MonoSingleton<UIManager>
     public void BatchClose()
     {
         List<Type> pageTypes = new List<Type>(_allPages.Keys);
-        foreach(Type pageType in pageTypes)
+        foreach (Type pageType in pageTypes)
         {
             Close(pageType);
         }
-    }
-
-    public void Remove<T>() where T : UIBase
-    {
-        Remove(typeof(T));
+        backSequence.Clear();
+        currentSession = null;
     }
 
     public void Remove(Type pageType)
@@ -139,6 +236,11 @@ public class UIManager : MonoSingleton<UIManager>
     public T GetPage<T>() where T : UIBase
     {
         Type pageType = typeof(T);
-        return _allPages.ContainsKey(pageType) ? _allPages[pageType] as T : null;
+        return GetPage(pageType) as T;
+    }
+
+    public UIBase GetPage(Type pageType)
+    {
+        return _allPages.ContainsKey(pageType) ? _allPages[pageType] : null;
     }
 }

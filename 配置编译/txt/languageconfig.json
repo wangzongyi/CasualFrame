@@ -1,0 +1,20 @@
+{
+  "items": {
+    "10001": {
+      "ID": 10001,
+      "Value": "\u7f51\u7edc\u53d1\u751f\u5f02\u5e38\uff0c\u8bf7\u68c0\u67e5\u7f51\u7edc\uff01"
+    },
+    "20100": {
+      "ID": 20100,
+      "Value": "\u5c1a\u672a\u4fdd\u5b58\uff0c\u662f\u5426\u9000\u51fa\uff1f"
+    },
+    "20200": {
+      "ID": 20200,
+      "Value": "\u83b7\u53d6\u9a8c\u8bc1\u7801"
+    },
+    "20201": {
+      "ID": 20201,
+      "Value": "\u91cd\u65b0\u53d1\u9001\n({0}s)"
+    }
+  }
+}

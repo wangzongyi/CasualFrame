@@ -25,21 +25,29 @@ public class Singleton<T> where T : new()
 
 public abstract class MonoSingleton<T> : MonoBehaviour where T : MonoSingleton<T>
 {
-    private static T m_instance = null;
+    protected static T m_instance = null;
+    private static readonly object _lock = new object();
+
     public static bool IsApplicationQuit = false;
+
+    [SerializeField]
+    protected bool m_dontDestroyOnLoad = true;
 
     public static T Instance()
     {
-        if (m_instance == null && !IsApplicationQuit)
+        lock(_lock)
         {
-            m_instance = GameObject.FindObjectOfType(typeof(T)) as T;
-            if (m_instance == null)
+            if (m_instance == null && !IsApplicationQuit)
             {
-                m_instance = new GameObject("Singleton of " + typeof(T).ToString(), typeof(T)).GetComponent<T>();
-                m_instance.Init();
+                m_instance = FindObjectOfType(typeof(T)) as T;
+                if (m_instance == null)
+                {
+                    m_instance = new GameObject("Singleton of " + typeof(T).Name, typeof(T)).GetComponent<T>();
+                    m_instance.Init();
+                }
             }
-            DontDestroyOnLoad(m_instance);
         }
+        
         return m_instance;
     }
 
@@ -48,12 +56,17 @@ public abstract class MonoSingleton<T> : MonoBehaviour where T : MonoSingleton<T
         if (m_instance == null)
         {
             m_instance = this as T;
+            m_instance.Init();
         }
+        if (!m_instance.transform.parent && m_dontDestroyOnLoad) DontDestroyOnLoad(m_instance);
+        OnAwake();
     }
+
+    protected virtual void OnAwake() { }
 
     public virtual void Init() { }
 
-    private void OnApplicationQuit()
+    protected virtual void OnApplicationQuit()
     {
         IsApplicationQuit = true;
     }

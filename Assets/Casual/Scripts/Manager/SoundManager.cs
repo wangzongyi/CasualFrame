@@ -1,11 +1,19 @@
 ﻿using UnityEngine;
 using DG.Tweening;
+using Sirenix.OdinInspector;
+using System.Collections.Generic;
 
 public class SoundManager : MonoSingleton<SoundManager>
 {
     private AudioSource _bgmAudioSource;
     private AudioSource _defaultSoundAudioSource;
 
+    private const string BGM_VOLUME_SCALE_KEY = "BgmVolumeScale";
+    private const string SOUND_VOLUME_SCALE_KEY = "SoundVolumeScale";
+    private const string BGM_TOGGLE_KEY = "BgmToggle";
+    private const string SOUND_TOGGLE_KEY = "SoundToggle";
+
+    [SerializeField, LabelText("初始背景音乐强度"), Range(0f, 1f)]
     private float _initBgmVolume = 1f;
     private float _bgmVolumeScale = 1f;
     public float BgmVolumeScale
@@ -13,11 +21,13 @@ public class SoundManager : MonoSingleton<SoundManager>
         get { return _bgmVolumeScale; }
         set
         {
-            _bgmVolumeScale = Mathf.Clamp(value, 0f, 1f) * _initBgmVolume;
-            _bgmAudioSource.volume = _bgmVolumeScale;
+            _bgmVolumeScale = Mathf.Clamp(value, 0f, 1f);
+            _bgmAudioSource.volume = _bgmVolumeScale * _initBgmVolume;
+            SetPlayerPrefsFloat(BGM_VOLUME_SCALE_KEY, _bgmVolumeScale);
         }
     }
 
+    [SerializeField, LabelText("初始音效强度"), Range(0f, 1f)]
     private float _initSoundVolume = 1f;
     private float _soundVolumeScale = 1f;
     public float SoundVolumeScale
@@ -25,8 +35,9 @@ public class SoundManager : MonoSingleton<SoundManager>
         get { return _bgmVolumeScale; }
         set
         {
-            _soundVolumeScale = Mathf.Clamp(value, 0f, 1f) * _initSoundVolume;
-            _defaultSoundAudioSource.volume = _soundVolumeScale;
+            _soundVolumeScale = Mathf.Clamp(value, 0f, 1f);
+            _defaultSoundAudioSource.volume = _soundVolumeScale * _initSoundVolume;
+            SetPlayerPrefsFloat(SOUND_VOLUME_SCALE_KEY, _soundVolumeScale);
         }
     }
 
@@ -38,7 +49,7 @@ public class SoundManager : MonoSingleton<SoundManager>
         {
             _bgmToggle = value;
             _bgmAudioSource.mute = !_bgmToggle;
-            PlayerPrefs.SetInt("BgmToggle", value ? 1 : 0);
+            PlayerPrefs.SetInt(BGM_TOGGLE_KEY, value ? 1 : 0);
         }
     }
 
@@ -50,7 +61,7 @@ public class SoundManager : MonoSingleton<SoundManager>
         {
             _soundToggle = value;
             _defaultSoundAudioSource.mute = !_soundToggle;
-            PlayerPrefs.SetInt("SoundToggle", value ? 1 : 0);
+            PlayerPrefs.SetInt(SOUND_TOGGLE_KEY, value ? 1 : 0);
         }
     }
 
@@ -61,17 +72,33 @@ public class SoundManager : MonoSingleton<SoundManager>
         InitDefaultSoundAuidoSource();
     }
 
+    private HashSet<string> delayPlayerPrefsSet = new HashSet<string>();
+
+    private void SetPlayerPrefsFloat(string name, float value)
+    {
+        if (delayPlayerPrefsSet.Add(name))
+        {
+            CoroutineAgent.DelayOperation(3f, () =>
+            {
+                PlayerPrefs.SetFloat(name, value);
+                delayPlayerPrefsSet.Remove(name);
+            });
+        }
+    }
+
     private void InitParam()
     {
-        _bgmToggle = PlayerPrefs.GetInt("BgmToggle", 1) == 0 ? false : true;
-        _soundToggle = PlayerPrefs.GetInt("SoundToggle", 1) == 0 ? false : true;
+        _bgmToggle = PlayerPrefs.GetInt(BGM_TOGGLE_KEY, 1) == 0 ? false : true;
+        _soundToggle = PlayerPrefs.GetInt(SOUND_TOGGLE_KEY, 1) == 0 ? false : true;
+
+        _bgmVolumeScale = PlayerPrefs.GetFloat(BGM_VOLUME_SCALE_KEY, 1f);
+        _soundVolumeScale = PlayerPrefs.GetFloat(SOUND_VOLUME_SCALE_KEY, 1f);
     }
 
     private void InitBgmAudioSource()
     {
         _bgmAudioSource = gameObject.AddComponent<AudioSource>();
-        _bgmAudioSource.volume = 1f;
-        _initBgmVolume = _bgmAudioSource.volume;
+        _bgmAudioSource.volume = _initBgmVolume * _bgmVolumeScale;
         _bgmAudioSource.mute = !BgmToggle;
         _bgmAudioSource.loop = true;
     }
@@ -79,8 +106,7 @@ public class SoundManager : MonoSingleton<SoundManager>
     private void InitDefaultSoundAuidoSource()
     {
         _defaultSoundAudioSource = gameObject.AddComponent<AudioSource>();
-        _defaultSoundAudioSource.volume = 1f;
-        _initSoundVolume = _defaultSoundAudioSource.volume;
+        _defaultSoundAudioSource.volume = _initSoundVolume * _soundVolumeScale;
         _defaultSoundAudioSource.mute = !SoundToggle;
         _defaultSoundAudioSource.loop = false;
     }
@@ -113,7 +139,7 @@ public class SoundManager : MonoSingleton<SoundManager>
     {
         if (_bgmAudioSource.clip == null || _bgmAudioSource.clip.name != clipName)
         {
-            ResourcesManager.Instance().LoadAsync<AudioClip>("Sounds/" + clipName, (clip) =>
+            ResourcesManager.LoadAsync<AudioClip>("Sounds/" + clipName, (clip) =>
             {
                 _bgmAudioSource.clip = clip;
                 _bgmAudioSource.Play();
@@ -160,7 +186,7 @@ public class SoundManager : MonoSingleton<SoundManager>
         if (!IsSoundTrigger || string.IsNullOrEmpty(clipName))
             return;
 
-        ResourcesManager.Instance().LoadAsync<AudioClip>("Sounds/" + clipName, (clip) =>
+        ResourcesManager.LoadAsync<AudioClip>("Sounds/" + clipName, (clip) =>
         {
             _defaultSoundAudioSource.clip = clip;
             _defaultSoundAudioSource.Play();
@@ -172,15 +198,23 @@ public class SoundManager : MonoSingleton<SoundManager>
         _defaultSoundAudioSource.clip = null;
     }
 
-    public void PlayOneShot(string clipName)
+    public void PlayOneShot(string clipName, float volumeScale = 1)
     {
         if (!IsSoundTrigger || string.IsNullOrEmpty(clipName))
             return;
 
-        ResourcesManager.Instance().LoadAsync<AudioClip>("Sounds/" + clipName, (clip) =>
+        ResourcesManager.LoadAsync<AudioClip>("Sounds/" + clipName, (clip) =>
         {
-            _defaultSoundAudioSource.PlayOneShot(clip);
+            _defaultSoundAudioSource.PlayOneShot(clip, volumeScale * SoundVolumeScale);
         }, ExtensionType.wav);
+    }
+
+    public void PlayOneShot(AudioClip clip, float volumeScale = 1)
+    {
+        if (!IsSoundTrigger || !clip)
+            return;
+
+        _defaultSoundAudioSource.PlayOneShot(clip, volumeScale);
     }
 
     public void PlayAtPoint(string clipName, Vector3 position)
@@ -188,7 +222,7 @@ public class SoundManager : MonoSingleton<SoundManager>
         if (!IsSoundTrigger || string.IsNullOrEmpty(clipName))
             return;
 
-        ResourcesManager.Instance().LoadAsync<AudioClip>("Sounds/" + clipName, (clip) =>
+        ResourcesManager.LoadAsync<AudioClip>("Sounds/" + clipName, (clip) =>
         {
             AudioSource.PlayClipAtPoint(clip, position, SoundVolumeScale);
         }, ExtensionType.wav);

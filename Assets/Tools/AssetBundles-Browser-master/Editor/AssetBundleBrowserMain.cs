@@ -11,7 +11,7 @@ namespace AssetBundleBrowser
     {
 
         private static AssetBundleBrowserMain s_instance = null;
-        internal static AssetBundleBrowserMain instance
+        public static AssetBundleBrowserMain instance
         {
             get
             {

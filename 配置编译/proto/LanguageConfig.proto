@@ -1,0 +1,19 @@
+/**
+* @file:   LanguageConfig.proto
+* @说明:  这个文件是通过工具自动生成的，建议不要手动修改
+*/
+
+syntax = "proto3";
+
+package proto;
+
+message LanguageConfig{
+    /** ID */
+    int32 ID = 1;
+    /** 字符 */
+    string Value = 2;
+}
+
+message LanguageConfigMap {
+    map<int32, LanguageConfig> items = 1;
+}

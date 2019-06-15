@@ -46,8 +46,8 @@ public class ScheduleManager : Singleton<ScheduleManager>
 
     protected override void Init()
     {
-        EventManager.Instance().AddEvent<bool>(EventEnum.Online, this, Online);
-        EventManager.Instance().AddEvent<long>(EventEnum.TimePass, this, TimePass);
+        EventManager.AddEvent<bool>(EventEnum.Online, this, Online);
+        EventManager.AddEvent<long>(EventEnum.TimePass, this, TimePass);
     }
 
     void TimePass(long serverTime)

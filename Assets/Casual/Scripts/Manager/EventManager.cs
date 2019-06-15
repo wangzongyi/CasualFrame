@@ -165,40 +165,40 @@ public class EventLib
     }
 }
 
-public class EventManager : Singleton<EventManager>
+public static class EventManager
 {
     /* 
      * 因为新事件涉及一个EventLib实例生成，这里注销事件的时候不移除,类似做个缓存
      * List<string> _emptyEvents = new List<string>();
      */
-    Dictionary<string/*EventType*/, EventLib> _eventDic = new Dictionary<string, EventLib>();
+    static Dictionary<string/*EventType*/, EventLib> _eventDic = new Dictionary<string, EventLib>();
 
-    public bool AddEvent(string type, object observer, Action method)
+    static public bool AddEvent(string type, object observer, Action method)
     {
         return AddEventExt(type, observer, method);
     }
 
-    public bool AddEvent<T>(string type, object observer, Action<T> method)
+    static public bool AddEvent<T>(string type, object observer, Action<T> method)
     {
         return AddEventExt(type, observer, method);
     }
 
-    public bool AddEvent<T, T2>(string type, object observer, Action<T, T2> method)
+    static public bool AddEvent<T, T2>(string type, object observer, Action<T, T2> method)
     {
         return AddEventExt(type, observer, method);
     }
 
-    public bool AddEvent<T, T2, T3>(string type, object observer, Action<T, T2, T3> method)
+    static public bool AddEvent<T, T2, T3>(string type, object observer, Action<T, T2, T3> method)
     {
         return AddEventExt(type, observer, method);
     }
 
-    public bool AddEvent<T, T2, T3, T4>(string type, object observer, Action<T, T2, T3, T4> method)
+    static public bool AddEvent<T, T2, T3, T4>(string type, object observer, Action<T, T2, T3, T4> method)
     {
         return AddEventExt(type, observer, method);
     }
 
-    public bool AddEventExt(string type, object observer, Delegate method)
+    static public bool AddEventExt(string type, object observer, Delegate method)
     {
         if (observer == null)
         {
@@ -220,7 +220,7 @@ public class EventManager : Singleton<EventManager>
     /// 因为新事件涉及一个EventLib实例生成，这里注销事件的时候不移除,类似做个缓存
     /// </summary>
     /// <param name="type"></param>
-    private void RemoveEvent(string type)
+    static private void RemoveEvent(string type)
     {
         if (_eventDic.ContainsKey(type))
         {
@@ -229,32 +229,32 @@ public class EventManager : Singleton<EventManager>
         }
     }
 
-    public void RemoveEvent(string type, object observer, Action method)
+    static public void RemoveEvent(string type, object observer, Action method)
     {
         RemoveEventExt(type, observer, method);
     }
 
-    public void RemoveEvent<T>(string type, object observer, Action<T> method)
+    static public void RemoveEvent<T>(string type, object observer, Action<T> method)
     {
         RemoveEventExt(type, observer, method);
     }
 
-    public void RemoveEvent<T, T2>(string type, object observer, Action<T, T2> method)
+    static public void RemoveEvent<T, T2>(string type, object observer, Action<T, T2> method)
     {
         RemoveEventExt(type, observer, method);
     }
 
-    public void RemoveEvent<T, T2, T3>(string type, object observer, Action<T, T2, T3> method)
+    static public void RemoveEvent<T, T2, T3>(string type, object observer, Action<T, T2, T3> method)
     {
         RemoveEventExt(type, observer, method);
     }
 
-    public void RemoveEvent<T, T2, T3, T4>(string type, object observer, Action<T, T2, T3, T4> method)
+    static public void RemoveEvent<T, T2, T3, T4>(string type, object observer, Action<T, T2, T3, T4> method)
     {
         RemoveEventExt(type, observer, method);
     }
 
-    public void RemoveEventExt(string type, object observer, Delegate method)
+    static public void RemoveEventExt(string type, object observer, Delegate method)
     {
         EventLib eventLib = null;
         if (_eventDic.TryGetValue(type, out eventLib))
@@ -274,7 +274,7 @@ public class EventManager : Singleton<EventManager>
     /// 移除某个观察者的所有事件
     /// </summary>
     /// <param name="observer"></param>
-    public void RemoveObserverEvent(object observer)
+    static public void RemoveObserverEvent(object observer)
     {
         if (observer == null)
             return;
@@ -307,7 +307,7 @@ public class EventManager : Singleton<EventManager>
     /// <summary>
     /// 清除所有事件，一般只在游戏重新初始化时调用
     /// </summary>
-    public void Clear()
+    static public void Clear()
     {
         _eventDic.Clear();
     }
@@ -316,7 +316,7 @@ public class EventManager : Singleton<EventManager>
     /// 停止某个事件继续调用，标记会在此次调用后清除
     /// </summary>
     /// <param name="type"></param>
-    public void StopEvent(string type)
+    static public void StopEvent(string type)
     {
         EventLib eventLib = null;
         if (_eventDic.TryGetValue(type, out eventLib))
@@ -325,7 +325,7 @@ public class EventManager : Singleton<EventManager>
         }
     }
 
-    public void Brocast(string type)
+    static public void Brocast(string type)
     {
         EventLib eventLib = null;
         if (_eventDic.TryGetValue(type, out eventLib))
@@ -334,7 +334,7 @@ public class EventManager : Singleton<EventManager>
         }
     }
 
-    public void Brocast<T>(string type, T arg)
+    static public void Brocast<T>(string type, T arg)
     {
         EventLib eventLib = null;
         if (_eventDic.TryGetValue(type, out eventLib))
@@ -342,7 +342,7 @@ public class EventManager : Singleton<EventManager>
             eventLib.Invoke(arg);
         }
     }
-    public void Brocast<T, T2>(string type, T arg, T2 arg2)
+    static public void Brocast<T, T2>(string type, T arg, T2 arg2)
     {
         EventLib eventLib = null;
         if (_eventDic.TryGetValue(type, out eventLib))
@@ -350,7 +350,7 @@ public class EventManager : Singleton<EventManager>
             eventLib.Invoke(arg, arg2);
         }
     }
-    public void Brocast<T, T2, T3>(string type, T arg, T2 arg2, T3 arg3)
+    static public void Brocast<T, T2, T3>(string type, T arg, T2 arg2, T3 arg3)
     {
         EventLib eventLib = null;
         if (_eventDic.TryGetValue(type, out eventLib))
@@ -358,12 +358,17 @@ public class EventManager : Singleton<EventManager>
             eventLib.Invoke(arg, arg2, arg3);
         }
     }
-    public void Brocast<T, T2, T3, T4>(string type, T arg, T2 arg2, T3 arg3, T4 arg4)
+    static public void Brocast<T, T2, T3, T4>(string type, T arg, T2 arg2, T3 arg3, T4 arg4)
     {
         EventLib eventLib = null;
         if (_eventDic.TryGetValue(type, out eventLib))
         {
             eventLib.Invoke(arg, arg2, arg3, arg4);
         }
+    }
+
+    internal static void AddEvent(string aB_UpData_Finsh, object aB_UpData_FinshCallBack)
+    {
+        throw new NotImplementedException();
     }
 }

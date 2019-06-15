@@ -107,8 +107,9 @@ namespace UnityEditor.UI
         static public void AddText(MenuCommand menuCommand)
         {
             GameObject go = DefaultControls.CreateText(GetStandardResources());
-            go.GetComponent<Graphic>().raycastTarget = false;
+            Text text = go.GetComponent<Text>();
             PlaceUIElementRoot(go, menuCommand);
+            TextDefaultStyle(text);
         }
 
         [MenuItem("GameObject/UI/Image", false, 2001)]
@@ -119,10 +120,10 @@ namespace UnityEditor.UI
             PlaceUIElementRoot(go, menuCommand);
         }
 
-        [MenuItem("GameObject/UI/TinyImage", false, 2002)]
+        [MenuItem("GameObject/UI/Tiny Image", false, 2002)]
         static public void AddTinyImage(MenuCommand menuCommand)
         {
-            GameObject go = CreateTinyImage(GetStandardResources());
+            GameObject go = CreateImage<TinyImage>(GetStandardResources());
             go.GetComponent<Graphic>().raycastTarget = false;
             PlaceUIElementRoot(go, menuCommand);
         }
@@ -133,6 +134,25 @@ namespace UnityEditor.UI
             GameObject go = DefaultControls.CreateRawImage(GetStandardResources());
             go.GetComponent<Graphic>().raycastTarget = false;
             PlaceUIElementRoot(go, menuCommand);
+        }
+
+        [MenuItem("GameObject/UI/Button", false, 2030)]
+        static public void AddButton(MenuCommand menuCommand)
+        {
+            GameObject go = DefaultControls.CreateButton(GetStandardResources());
+            Text text = go.GetComponentInChildren<Text>();
+            PlaceUIElementRoot(go, menuCommand);
+            go.AddComponent<ButtonInteraction>();
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(256, 64);
+            TextDefaultStyle(text);
+        }
+
+        static private void TextDefaultStyle(Text text)
+        {
+            text.raycastTarget = false;
+            text.font = GameConfigs.DefaultFont;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.fontSize = 24;
         }
 
         static public GameObject CreateNewUI()
@@ -194,10 +214,10 @@ namespace UnityEditor.UI
             return MenuOptions.CreateNewUI();
         }
 
-        public static GameObject CreateTinyImage(DefaultControls.Resources resources)
+        public static GameObject CreateImage<T>(DefaultControls.Resources resources) where T : Image
         {
             GameObject go = CreateUIElementRoot("Image", new Vector2(100, 100));
-            go.AddComponent<TinyImage>();
+            go.AddComponent<T>();
             return go;
         }
 

@@ -16,11 +16,6 @@ public class GameContext : MonoSingleton<GameContext>
     {
         UIManager.Instance().Open<UIBackground>("UIBackground");
         UIManager.Instance().Open<UIMain>("UIMain");
-
-        GoodsInfoMapManager.Instance().LoadConfig();
-        Proto.GoodsInfo info = GoodsInfoMapManager.Instance().GetItem(10999);
-
-        Debug.Log(info.GoodsId + "|" + info.ToString());
     }
 
     void Update()

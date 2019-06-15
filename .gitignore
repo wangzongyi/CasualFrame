@@ -1,0 +1,7 @@
+/*.csproj
+/*.sln
+/配置编译/client-proto.dll
+/配置编译/proto/__pycache__
+/Temp
+/Library
+/.vs

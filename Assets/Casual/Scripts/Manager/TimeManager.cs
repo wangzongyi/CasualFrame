@@ -29,7 +29,7 @@ public class TimeManager : Singleton<TimeManager>
         m_calibrateNativeTime = NowTimeStamp;
         m_calibrateServerTime = m_calibrateNativeTime;
 
-        EventManager.Instance().AddEvent<long>(EventEnum.CalibrateTime, this, OnCalibrateTime);
+        EventManager.AddEvent<long>(EventEnum.CalibrateTime, this, OnCalibrateTime);
 
         GameContext.UpdateEvent += Update;
         GameContext.ApplicationPause += OnApplicationPause;
@@ -40,7 +40,7 @@ public class TimeManager : Singleton<TimeManager>
         if (Time.time - m_lastPassTime > TIME_PASS_INTERVAL)
         {
             m_lastPassTime = Time.time;
-            EventManager.Instance().Brocast(EventEnum.TimePass, ServerTime);
+            EventManager.Brocast(EventEnum.TimePass, ServerTime);
         }
     }
 

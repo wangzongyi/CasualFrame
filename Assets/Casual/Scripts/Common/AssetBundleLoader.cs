@@ -62,20 +62,18 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
     Dictionary<string, List<AssetLoader>> _loadRequests = new Dictionary<string, List<AssetLoader>>();
 
     // Load AssetBundleManifest.
-    public void Initialize(Action initOK)
+    protected override void Init()
     {
-        _assetPathInfoMap.Clear();
-
-        LoadAsset<AssetBundleManifest>(GameConfigs.AssetDir, new string[] { "AssetBundleManifest" }, delegate (UObject[] objs)
+        if (!GameConfigs.DebugMode)
         {
-            if (objs.Length > 0)
-            {
-                _assetBundleManifest = objs[0] as AssetBundleManifest;
-                LoadAssetPathInfos();
-            }
+            LoadMainifest();
+            LoadAssetPathInfos();
+        }
+    }
 
-            if (initOK != null) initOK();
-        });
+    public void LoadMainifest()
+    {
+        _assetBundleManifest = LoadAssetSync<AssetBundleManifest>(GameConfigs.AssetDir, "AssetBundleManifest");
     }
 
     public void UnloadMainfest()
@@ -88,10 +86,10 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
     /// </summary>
     public void LoadAssetPathInfos()
     {
-        string bundleName = GameConfigs.AssetPathInfoName;
+        string bundleName = GameConfigs.BundleFileName;
         TextAsset textAsset = LoadAssetSync<TextAsset>(bundleName, bundleName);
 
-        string[] files = textAsset.text.Split('\r','\n');
+        string[] files = textAsset.text.Split('\r', '\n');
         for (int index = 0, len = files.Length; index < len; index++)
         {
             if (!string.IsNullOrEmpty(files[index]))
@@ -99,7 +97,7 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
                 string[] fileInfos = files[index].Split('|');
                 if (fileInfos.Length >= 2)
                 {
-                    _assetPathInfoMap[fileInfos[0]] = fileInfos[1];
+                    _assetPathInfoMap[fileInfos[1]] = fileInfos[0];
                 }
             }
         }
@@ -173,7 +171,7 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
         if (!GameConfigs.AssetDir.Equals(abName))
         {
             abName = abName.ToLower();
-            if(!abName.EndsWith(GameConfigs.ExtName))
+            if (!abName.EndsWith(GameConfigs.ExtName))
             {
                 abName = abName + GameConfigs.ExtName;
             }
@@ -271,6 +269,7 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
                     string depName = dependencies[i];
                     if (string.IsNullOrEmpty(depName))
                     {
+                        Debug.LogError("加载依赖项为空：" + depName);
                         continue;
                     }
 
@@ -317,12 +316,12 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
         }
     }
 
-    public void LoadAssetByPath<T>(string assetPath, Action<T> callback = null) where T : UObject
+    public Coroutine LoadAssetByPath<T>(string assetPath, Action<T> callback = null) where T : UObject
     {
         string abName = GetBundleNameWithAssetPath(assetPath);
         string assetName = Path.GetFileNameWithoutExtension(assetPath);
 
-        LoadAsset<T>(abName, assetName, callback);
+        return LoadAsset<T>(abName, assetName, callback);
     }
 
     /// <summary>
@@ -339,6 +338,10 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
             if (objs != null && objs.Length > 0 && callback != null)
             {
                 callback(objs[0] as T);
+            }
+            else if (objs == null)
+            {
+                Debug.LogErrorFormat("加载AB:{0},assetName:{1}失败！", abName, assetName);
             }
         });
     }
@@ -479,4 +482,3 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
         this._loadedAssetBundles.Clear();
     }
 }
-

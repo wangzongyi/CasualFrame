@@ -1,0 +1,9 @@
+using Proto;
+
+public class {0}Manager : BaseConfigManager<{0}Manager, {1}, {0}>
+{{
+    public override void Deserialize(byte[] bytes)
+    {{
+        MapField = {0}Map.Parser.ParseFrom(bytes).Items;
+    }}
+}}
