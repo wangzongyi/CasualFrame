@@ -32,6 +32,7 @@
 import xlrd
 import sys
 import os
+import glob
 import re
 from google.protobuf.json_format import MessageToDict, MessageToJson
 
@@ -98,6 +99,8 @@ txt_path = 'txt'
 data_path = 'protodata'
 csharp_path = 'csharp'
 csharp_manager_path = 'csharp_manager'
+compile_file_path = "files.txt"
+
 
 class Sheetinterpreter:
     """通过excel配置生成配置的protobuf定义文件"""
@@ -135,6 +138,9 @@ class Sheetinterpreter:
 
         if not os.path.exists(csharp_path):
             os.mkdir(csharp_path)
+
+        if not os.path.exists(csharp_manager_path):
+            os.mkdir(csharp_manager_path)
 
         self._pb_file_name = sheet_name + ".proto"
 
@@ -617,46 +623,51 @@ if __name__ == '__main__':
         sys.exit(-2)
 
     xls_file_path = sys.argv[2]
-    '''
-
+    
+    
     if len(sys.argv) < 2:
         print('没有传入用于编译的Excel名')
         sys.exit(-1)
+    '''
+    if not os.path.exists(compile_file_path):
+        print("编译配置文件出错["+compile_file_path + "]不存在！")
+        sys.exit(-1)
 
-    xls_file_path = sys.argv[1]
-    try:
-        workbook = xlrd.open_workbook(xls_file_path)
-    except BaseException as open_workbook_error:
-        print("打开Excel失败:%s!!!" % open_workbook_error)
-        sys.exit(-2)
-        raise
+    for line in open(compile_file_path, "r+"):
+        for xls_file_path in glob.glob(line):
+            try:
+                workbook = xlrd.open_workbook(xls_file_path)
+            except BaseException as open_workbook_error:
+                print("打开Excel失败:%s!!!" % open_workbook_error)
+                sys.exit(-2)
+                raise
 
-    for sheet_name in workbook.sheet_names():
-        if sheet_name.startswith('#'):
-            break
+            for sheet_name in workbook.sheet_names():
+                if sheet_name.startswith('#'):
+                    break
 
-        sheet = workbook.sheet_by_name(sheet_name)
+                sheet = workbook.sheet_by_name(sheet_name)
 
-        try:
-            tool = Sheetinterpreter(sheet, sheet_name)
-            tool.interpreter()
-        except BaseException as interpreter_error:
-            print("生成%s.proto失败:%s!!!" % (sheet_name, interpreter_error))
-            sys.exit(-3)
-            raise
+                try:
+                    tool = Sheetinterpreter(sheet, sheet_name)
+                    tool.interpreter()
+                except BaseException as interpreter_error:
+                    print("生成%s.proto失败:%s!!!" % (sheet_name, interpreter_error))
+                    sys.exit(-3)
+                    raise
 
-        try:
-            parser = DataParser(sheet, sheet_name)
-            parser.parse()
-        except BaseException as parser_error:
-            print("生成%s.bytes失败:%s!!!" % (sheet_name, parser_error))
-            sys.exit(-4)
-            raise
+                try:
+                    parser = DataParser(sheet, sheet_name)
+                    parser.parse()
+                except BaseException as parser_error:
+                    print("生成%s.bytes失败:%s!!!" % (sheet_name, parser_error))
+                    sys.exit(-4)
+                    raise
 
-        try:
-            command = "protoc --proto_path=./ %s --csharp_out=./csharp/" % (proto_path + sheet_name + '.proto')
-            os.system(command)
-        except BaseException as e:
-            print("protoc csharp failed:%s!" % e)
+                try:
+                    command = "protoc --proto_path=./ %s --csharp_out=./csharp/" % (proto_path + sheet_name + '.proto')
+                    os.system(command)
+                except BaseException as e:
+                    print("protoc csharp failed:%s!" % e)
 
-        print("编译%s成功！" % sheet_name)
+                print("编译%s成功！" % sheet_name)
