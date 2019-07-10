@@ -3,24 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UIMain : UIBase
+public class UISetting : UIBase
 {
     [SerializeField]
-    Button btnExit, btnSetting;
+    Button btnExit;
 
     protected override void InitComponent()
     {
         AddClick(btnExit, OnClickExit);
-        AddClick(btnSetting, OnClickNext);
     }
 
     private void OnClickExit()
     {
         Close();
-    }
-
-    private void OnClickNext()
-    {
-        UIManager.Instance().Open<UISetting>();
     }
 }

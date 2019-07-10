@@ -31,8 +31,8 @@ public class TimeManager : Singleton<TimeManager>
 
         EventManager.AddEvent<long>(EventEnum.CalibrateTime, this, OnCalibrateTime);
 
-        GameContext.UpdateEvent += Update;
-        GameContext.ApplicationPause += OnApplicationPause;
+        MonoContext.UpdateEvent += Update;
+        MonoContext.ApplicationPause += OnApplicationPause;
     }
 
     void Update()

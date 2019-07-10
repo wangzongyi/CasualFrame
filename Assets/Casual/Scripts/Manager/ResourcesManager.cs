@@ -51,6 +51,7 @@ public enum ExtensionType
     wav,
     ogg,
     bytes,
+    controller,
 }
 
 public class ResourcesManager
@@ -79,12 +80,12 @@ public class ResourcesManager
     /// <typeparam name="T">UnityEngine.Object</typeparam>
     /// <param name="assetPaths">相对路径</param>
     /// <param name="callback"></param>
-    static public void LoadAsync<T>(string[] assetPaths, Action<UObject[]> callback, ExtensionType rType = ExtensionType.prefab, object observer = null) where T : UObject
+    static public Coroutine LoadAsync<T>(ICollection<string> assetPaths, Action<T[]> callback, ExtensionType rType = ExtensionType.prefab, object observer = null) where T : UObject
     {
-        CoroutineAgent.StartCoroutine(_LoadAsync<T>(assetPaths, callback, rType, observer));
+        return CoroutineAgent.StartCoroutine(_LoadAsync<T>(assetPaths, callback, rType, observer));
     }
 
-    static private IEnumerator _LoadAsync<T>(string[] assetPaths, Action<UObject[]> callback, ExtensionType rType = ExtensionType.prefab, object observer = null) where T : UObject
+    static private IEnumerator _LoadAsync<T>(ICollection<string> assetPaths, Action<T[]> callback, ExtensionType rType = ExtensionType.prefab, object observer = null) where T : UObject
     {
         List<T> assets = new List<T>();
         foreach (string path in assetPaths)
@@ -124,7 +125,7 @@ public class ResourcesManager
 
             if (GameConfigs.PublishMode == PublishMode.Release)
             {
-                return AssetBundleLoader.Instance().LoadAssetByPath<T>(fullAssetPath, callback);
+                return AssetBundleLoader.Instance().LoadAssetByPath<T>(fullAssetPath, callback); 
             }
             else
             {
@@ -220,6 +221,14 @@ public class ResourcesManager
         }
     }
 
+    static public void UnloadAsset(object observer, string fullAssetPath)
+    {
+        if(_observeHash.ContainsKey(observer) && _observeHash[observer].ContainsKey(fullAssetPath))
+        {
+            UnloadAsset(fullAssetPath, _observeHash[observer][fullAssetPath]);
+        }
+    }
+
     /// <summary>
     /// 卸载已加载的资源
     /// </summary>
@@ -235,7 +244,6 @@ public class ResourcesManager
 
     static private T LoadDebug<T>(string assetPath) where T : UObject
     {
-        Debug.Log(assetPath);
 #if UNITY_EDITOR
         return UnityEditor.AssetDatabase.LoadAssetAtPath<T>(assetPath);
 #else

@@ -35,11 +35,11 @@ public class UIManager : MonoSingleton<UIManager>
     [SerializeField]
     private Canvas[] layerRoot = new Canvas[(int)UILayerType.MAX];
 
-    private HashSet<Type> _loading = new HashSet<Type>();
-    private Dictionary<Type, UIBase> _allPages = new Dictionary<Type, UIBase>();
+    private HashSet<Type> loadingUI = new HashSet<Type>();
+    private Dictionary<Type, UIBase> allPages = new Dictionary<Type, UIBase>();
     //private Queue<UIBase>
     private UISession currentSession;
-    private Queue<UISession> backSequence = new Queue<UISession>();
+    private Stack<UISession> backSequence = new Stack<UISession>();
 
     private const string UI_PREFAB_PATH = "{0}/Prefab/UI/{1}.prefab";
 
@@ -76,12 +76,12 @@ public class UIManager : MonoSingleton<UIManager>
     {
         if (IsExist(pageType))
         {
-            _allPages[pageType].InitData(data);
-            _allPages[pageType].OnOpen(callback);
+            allPages[pageType].InitData(data);
+            allPages[pageType].OnOpen(callback);
         }
-        else if (!_loading.Contains(pageType))
+        else if (!loadingUI.Contains(pageType))
         {
-            _loading.Add(pageType);
+            loadingUI.Add(pageType);
             prefabName = string.Format(UI_PREFAB_PATH, GameConfigs.AssetRoot, prefabName);
             ResourcesManager.LoadAsyncWithFullPath<GameObject>(prefabName, (prefab) =>
             {
@@ -90,19 +90,20 @@ public class UIManager : MonoSingleton<UIManager>
         }
     }
 
-    private void OpenByFullPath(Type pageType, string fullPrefabName, object data, Action callback = null, bool pushCurrentToBack = true)
+    private void OpenByFullPath(Type pageType, string fullPrefabName, object data, Action callback = null, bool pushCurrentToBack = true, Action closeAction = null)
     {
         if (IsExist(pageType))
         {
-            _allPages[pageType].InitData(data);
-            _allPages[pageType].OnOpen(callback);
+            allPages[pageType].InitData(data);
+            allPages[pageType].OnOpen(callback);
         }
-        else if (!_loading.Contains(pageType))
+        else if (!loadingUI.Contains(pageType))
         {
-            _loading.Add(pageType);
+            loadingUI.Add(pageType);
             ResourcesManager.LoadAsyncWithFullPath<GameObject>(fullPrefabName, (prefab) =>
             {
                 LoadDone(pageType, prefab, fullPrefabName, data, callback, pushCurrentToBack);
+                closeAction?.Invoke();
             });
         }
     }
@@ -117,8 +118,8 @@ public class UIManager : MonoSingleton<UIManager>
         uiPage.InitData(data);
         uiPage.InitPrefabName(fullPrefabName);
 
-        _allPages[pageType] = uiPage;
-        _loading.Remove(pageType);
+        allPages[pageType] = uiPage;
+        loadingUI.Remove(pageType);
 
         uiPage.OnOpen(callback);
 
@@ -130,7 +131,7 @@ public class UIManager : MonoSingleton<UIManager>
 
                 if (GetPage(currentPageType).NeedPush && pushCurrentToBack)
                 {
-                    backSequence.Enqueue(currentSession);
+                    backSequence.Push(currentSession);
                 }
                 else
                 {
@@ -149,13 +150,19 @@ public class UIManager : MonoSingleton<UIManager>
     /// <summary>
     /// 弹出队列中界面
     /// </summary>
-    public void UIBackSequence()
+    public void UIBackSequence(Action callback = null)
     {
-        if(backSequence.Count > 0)
+        if (backSequence.Count > 0)
         {
-            UISession session = backSequence.Dequeue();
-            OpenByFullPath(session.PageType, session.PrefabName, session.Data, session.Callback, false);
+            UISession session = backSequence.Pop();
+            OpenByFullPath(session.PageType, session.PrefabName, session.Data, session.Callback, false, callback);
         }
+    }
+
+    private void CollectUI(UIBase uibase)
+    {
+        if (!uibase) return;
+        GameObjectPoolManager.Instance().ReturnObject(uibase.gameObject);
     }
 
     public void Close<T>(Action callback = null) where T : UIBase
@@ -167,8 +174,14 @@ public class UIManager : MonoSingleton<UIManager>
     {
         if (IsExist(pageType))
         {
-            GetPage(pageType).CloseAction(callback);
-            Remove(pageType);
+            UIBase uiInstance = GetPage(pageType);
+
+            if (uiInstance)
+            {
+                uiInstance.CloseAction(callback);
+                CollectUI(uiInstance);
+                Remove(pageType);
+            }
         }
     }
 
@@ -177,7 +190,7 @@ public class UIManager : MonoSingleton<UIManager>
         Type pageType = typeof(T);
         if (IsExist(pageType))
         {
-            _allPages[typeof(T)].Show();
+            allPages[typeof(T)].Show();
         }
     }
 
@@ -186,13 +199,13 @@ public class UIManager : MonoSingleton<UIManager>
         Type pageType = typeof(T);
         if (IsExist(pageType))
         {
-            _allPages[pageType].Hide();
+            allPages[pageType].Hide();
         }
     }
 
     public void BatchShow()
     {
-        foreach (UIBase ui in _allPages.Values)
+        foreach (UIBase ui in allPages.Values)
         {
             if (ui) ui.Show();
         }
@@ -200,7 +213,7 @@ public class UIManager : MonoSingleton<UIManager>
 
     public void BatchHide()
     {
-        foreach (UIBase ui in _allPages.Values)
+        foreach (UIBase ui in allPages.Values)
         {
             if (ui) ui.Hide();
         }
@@ -208,7 +221,7 @@ public class UIManager : MonoSingleton<UIManager>
 
     public void BatchClose()
     {
-        List<Type> pageTypes = new List<Type>(_allPages.Keys);
+        List<Type> pageTypes = new List<Type>(allPages.Keys);
         foreach (Type pageType in pageTypes)
         {
             Close(pageType);
@@ -219,7 +232,7 @@ public class UIManager : MonoSingleton<UIManager>
 
     public void Remove(Type pageType)
     {
-        _allPages.Remove(pageType);
+        allPages.Remove(pageType);
     }
 
     public bool IsExist<T>() where T : UIBase
@@ -230,17 +243,17 @@ public class UIManager : MonoSingleton<UIManager>
 
     public bool IsExist(Type pageType)
     {
-        return _allPages.ContainsKey(pageType) && _allPages[pageType];
+        return allPages.ContainsKey(pageType) && allPages[pageType];
     }
 
-    public T GetPage<T>() where T : UIBase
+    private T GetPage<T>() where T : UIBase
     {
         Type pageType = typeof(T);
         return GetPage(pageType) as T;
     }
 
-    public UIBase GetPage(Type pageType)
+    private UIBase GetPage(Type pageType)
     {
-        return _allPages.ContainsKey(pageType) ? _allPages[pageType] : null;
+        return allPages.ContainsKey(pageType) ? allPages[pageType] : null;
     }
 }

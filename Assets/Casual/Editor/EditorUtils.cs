@@ -9,27 +9,28 @@ using Object = UnityEngine.Object;
 
 public class EditorUtils : Editor
 {
-    [MenuItem("Assets/Texture/Set Packing Tag")]
+    [MenuItem("Assets/Tools/Set Packing Tag", priority = 1)]
     protected static void SetPackingTag()
     {
-        string str_selectedPath = AssetDatabase.GetAssetPath(Selection.activeObject).Replace("\\", "/");
-        string str_packingTag = str_selectedPath.Substring(str_selectedPath.LastIndexOf("/") + 1);
+        List<string> allfiles = GetSelectFiles<Texture2D>("*.png");
 
-        var files = Directory.GetFiles(str_selectedPath, "*.png");
-
-        for (int i = 0, len = files.Length; i < len; i++)
+        for (int i = 0, len = allfiles.Count; i < len; i++)
         {
-            TextureImporter importer = AssetImporter.GetAtPath(files[i]) as TextureImporter;
+            string packingTag = new FileInfo(allfiles[i]).Directory.Name;
+
+            TextureImporter importer = AssetImporter.GetAtPath(allfiles[i]) as TextureImporter;
             importer.textureType = TextureImporterType.Sprite;
 
             //Image tex = Image.FromFile(files[i]);
 
             //int maxTextureSize = Mathf.Clamp(Mathf.Max(tex.Width, tex.Height), 32, 2048);
 
+            int max = importer.GetPlatformTextureSettings("Android").maxTextureSize;
+
             TextureImporterPlatformSettings androidSettings = new TextureImporterPlatformSettings()
             {
                 overridden = true,
-                maxTextureSize = 2048,
+                maxTextureSize = max > 2048 ? 2048 : max,
                 format = TextureImporterFormat.ETC_RGB4,
                 allowsAlphaSplitting = true,
                 compressionQuality = 100,
@@ -39,7 +40,7 @@ public class EditorUtils : Editor
             TextureImporterPlatformSettings iphoneSettings = new TextureImporterPlatformSettings()
             {
                 overridden = true,
-                maxTextureSize = 2048,
+                maxTextureSize = max > 2048 ? 2048 : max,
                 format = TextureImporterFormat.PVRTC_RGBA4,
                 allowsAlphaSplitting = false,
                 compressionQuality = 100,
@@ -51,7 +52,7 @@ public class EditorUtils : Editor
             importer.SetPlatformTextureSettings(androidSettings);
             importer.SetPlatformTextureSettings(iphoneSettings);
 
-            importer.spritePackingTag = str_packingTag;
+            importer.spritePackingTag = packingTag;
             //importer.mipmapEnabled = false;
             importer.SaveAndReimport();
 
@@ -60,7 +61,12 @@ public class EditorUtils : Editor
         EditorUtility.ClearProgressBar();
     }
 
-    [MenuItem("Assets/Texture/Set Packing Tag", true)]
+    [MenuItem("Assets/Tools/Set Packing Tag", true)]
+    protected static bool CheckSetPackingTag()
+    {
+        return IsPicture() || IskDirectory();
+    }
+
     protected static bool IskDirectory()
     {
         if (Selection.activeObject)
@@ -78,58 +84,93 @@ public class EditorUtils : Editor
         return false;
     }
 
-    [MenuItem("Assets/Texture/Set ETC2 or PVRTC 4bits", true)]
-    protected static bool CheckSetETC4()
+    static bool IsPicture()
     {
-        return IskDirectory();
+        return Selection.activeObject && Selection.activeObject.GetType() == typeof(Texture2D);
     }
 
-    [MenuItem("Assets/Texture/Set ETC2 or PVRTC 4bits")]
+    [MenuItem("Assets/Tools/Set ETC2 or PVRTC 4bits", true)]
+    protected static bool CheckSetETC4()
+    {
+        return IsPicture() || IskDirectory();
+    }
+
+    [MenuItem("Assets/Tools/Set ETC2 or PVRTC 4bits", priority = 2)]
     protected static void SetETC4()
     {
-        string str_selectedPath = AssetDatabase.GetAssetPath(Selection.activeObject).Replace("\\", "/");
-        var files = Directory.GetFiles(str_selectedPath, "*.png");
+        string projectPath = Environment.CurrentDirectory;
+        List<string> allFiles = GetSelectFiles<Texture2D>("*.png");
 
-        for (int i = 0, len = files.Length; i < len; i++)
+        for (int index = 0, len = allFiles.Count; index < len; index++)
         {
-            TextureImporter importer = AssetImporter.GetAtPath(files[i]) as TextureImporter;
-            importer.textureType = TextureImporterType.Sprite;
-
-            //int maxTextureSize = Mathf.Clamp(Mathf.Max(tex.Width, tex.Height), 32, 2048);
-            TextureImporterPlatformSettings androidSettings = new TextureImporterPlatformSettings()
-            {
-                overridden = true,
-                maxTextureSize = 2048,
-                format = TextureImporterFormat.ETC2_RGB4,
-                allowsAlphaSplitting = true,
-                compressionQuality = 100,
-                name = "Android",
-            };
-
-            TextureImporterPlatformSettings iphoneSettings = new TextureImporterPlatformSettings()
-            {
-                overridden = true,
-                maxTextureSize = 2048,
-                format = TextureImporterFormat.PVRTC_RGB4,
-                allowsAlphaSplitting = false,
-                compressionQuality = 100,
-                name = "iPhone",
-            };
-
-            //importer.SetPlatformTextureSettings("Android", Mathf.Max(tex.width, tex.height), TextureImporterFormat.ETC_RGB4, 100, true);
-            //importer.SetPlatformTextureSettings("iPhone", Mathf.Max(tex.width, tex.height), TextureImporterFormat.RGBA16, 100, false);
-            importer.textureType = TextureImporterType.Default;
-            importer.mipmapEnabled = false;
-            importer.npotScale = TextureImporterNPOTScale.ToNearest;
-
-            importer.SetPlatformTextureSettings(androidSettings);
-            importer.SetPlatformTextureSettings(iphoneSettings);
-
-            importer.SaveAndReimport();
-
-            EditorUtility.DisplayProgressBar("Set 4bits", string.Format("{0}/{1}", i, len), i * 1.0f / len);
+            TextureImporterSetter(allFiles[index]);
+            EditorUtility.DisplayProgressBar("Set ETC2 and PVRTC 4bits", string.Format("{0}/{1}", index, len), index * 1.0f / len);
         }
+
         EditorUtility.ClearProgressBar();
+    }
+
+    public static List<string> GetSelectFiles<T>(string searchPattern)
+    {
+        string projectPath = Environment.CurrentDirectory;
+        List<string> allFiles = new List<string>();
+
+        for (int index = 0, selectLen = Selection.objects.Length; index < selectLen; index++)
+        {
+            Object selectObj = Selection.objects[index];
+            string str_selected_asset_path = AssetDatabase.GetAssetPath(selectObj).Replace("\\", "/");
+            string str_seleted_file_path = Path.Combine(projectPath, AssetDatabase.GetAssetPath(selectObj)).Replace("\\", "/");
+            FileInfo fileInfo = new FileInfo(str_seleted_file_path);
+
+            if ((fileInfo.Attributes & FileAttributes.Directory) != 0)
+            {
+                var files = Directory.GetFiles(str_selected_asset_path, searchPattern);
+                allFiles.AddRange(files);
+            }
+            else if (selectObj.GetType() == typeof(T))
+            {
+                allFiles.Add(str_selected_asset_path);
+            }
+        }
+        return allFiles;
+    }
+
+    protected static void TextureImporterSetter(string filePath)
+    {
+        TextureImporter importer = AssetImporter.GetAtPath(filePath) as TextureImporter;
+        importer.textureType = TextureImporterType.Sprite;
+
+        //int maxTextureSize = Mathf.Clamp(Mathf.Max(tex.Width, tex.Height), 32, 2048);
+        TextureImporterPlatformSettings androidSettings = new TextureImporterPlatformSettings()
+        {
+            overridden = true,
+            maxTextureSize = 2048,
+            format = TextureImporterFormat.ETC2_RGB4,
+            allowsAlphaSplitting = true,
+            compressionQuality = 100,
+            name = "Android",
+        };
+
+        TextureImporterPlatformSettings iphoneSettings = new TextureImporterPlatformSettings()
+        {
+            overridden = true,
+            maxTextureSize = 2048,
+            format = TextureImporterFormat.PVRTC_RGB4,
+            allowsAlphaSplitting = false,
+            compressionQuality = 100,
+            name = "iPhone",
+        };
+
+        //importer.SetPlatformTextureSettings("Android", Mathf.Max(tex.width, tex.height), TextureImporterFormat.ETC_RGB4, 100, true);
+        //importer.SetPlatformTextureSettings("iPhone", Mathf.Max(tex.width, tex.height), TextureImporterFormat.RGBA16, 100, false);
+        importer.textureType = TextureImporterType.Default;
+        importer.mipmapEnabled = false;
+        importer.npotScale = TextureImporterNPOTScale.ToNearest;
+
+        importer.SetPlatformTextureSettings(androidSettings);
+        importer.SetPlatformTextureSettings(iphoneSettings);
+
+        importer.SaveAndReimport();
     }
 
     class BundleBuildInfo
@@ -141,7 +182,7 @@ public class EditorUtils : Editor
     /// <summary>
     /// 一个文件夹一个Bundle
     /// </summary>
-    [MenuItem("Assets/Asset Bundle/完整文件夹名")]
+    [MenuItem("Assets/Tools/Asset Bundle/完整文件夹名", priority = 51)]
     protected static void MarkFullPackage()
     {
         SetBundleName(BundleNameType.RootFolder);
@@ -150,7 +191,7 @@ public class EditorUtils : Editor
     /// <summary>
     /// 一个文件夹一个Bundle
     /// </summary>
-    [MenuItem("Assets/Asset Bundle/文件夹名")]
+    [MenuItem("Assets/Tools/Asset Bundle/文件夹名", priority = 51)]
     protected static void MarkPackage()
     {
         SetBundleName(BundleNameType.Folder);
@@ -159,7 +200,7 @@ public class EditorUtils : Editor
     /// <summary>
     /// 单个文件一个Bundle
     /// </summary>
-    [MenuItem("Assets/Asset Bundle/文件名")]
+    [MenuItem("Assets/Tools/Asset Bundle/文件名", priority = 51)]
     protected static void MarkAlone()
     {
         SetBundleName(BundleNameType.FileName);
@@ -168,7 +209,7 @@ public class EditorUtils : Editor
     /// <summary>
     /// 清除Bundle
     /// </summary>
-    [MenuItem("Assets/Asset Bundle/清除名字")]
+    [MenuItem("Assets/Tools/Asset Bundle/清除名字", priority = 51)]
     protected static void ClearBundleName()
     {
         SetBundleName(BundleNameType.None);

@@ -1,21 +1,9 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
-/// <summary>
-/// 一般涉及资源加载的MonoBehaviour需要继承此类
-/// 没有特殊情况推荐使用异步方法
-/// </summary>
 public abstract class BaseBehaviour : MonoBehaviour
 {
-    private void Awake()
-    {
-        OnAwake();
-    }
-
-    protected virtual void OnAwake()
+    protected virtual void OnEnable()
     {
         RegisterEvents();
     }
@@ -51,22 +39,22 @@ public abstract class BaseBehaviour : MonoBehaviour
 
     protected void ExcuteEvent<T>(string eventType, T param)
     {
-        EventManager.Brocast<T>(eventType, param);
+        EventManager.Brocast(eventType, param);
     }
 
-    protected void ExcuteEvent<T, T1>(string eventType, T param, T1 param1)
+    protected void ExcuteEvent<T1, T2>(string eventType, T1 param, T2 param2)
     {
-        EventManager.Brocast<T, T1>(eventType, param, param1);
+        EventManager.Brocast(eventType, param, param2);
     }
 
-    protected void ExcuteEvent<T, T1, T2>(string eventType, T param, T1 param1, T2 param2)
+    protected void ExcuteEvent<T1, T2, T3>(string eventType, T1 param, T2 param2, T3 param3)
     {
-        EventManager.Brocast<T, T1, T2>(eventType, param, param1, param2);
+        EventManager.Brocast(eventType, param, param2, param3);
     }
 
-    protected void ExcuteEvent<T, T1, T2, T3>(string eventType, T param, T1 param1, T2 param2, T3 param3)
+    protected void ExcuteEvent<T1, T2, T3, T4>(string eventType, T1 param, T2 param2, T3 param3, T4 param4)
     {
-        EventManager.Brocast<T, T1, T2, T3>(eventType, param, param1, param2, param3);
+        EventManager.Brocast(eventType, param, param2, param3, param4);
     }
 
     /// <summary>
@@ -102,12 +90,11 @@ public abstract class BaseBehaviour : MonoBehaviour
 
     protected virtual void OnDisable()
     {
-        ReturnObjects();
+        RemoveEvents();
     }
 
     protected virtual void OnDestroy()
     {
-        RemoveEvents();
         UnloadAsset();
     }
 }

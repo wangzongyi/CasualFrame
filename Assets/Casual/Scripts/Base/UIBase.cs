@@ -38,7 +38,7 @@ abstract public class UIBase<T> : UIBase
 abstract public class UIBase : BaseBehaviour
 {
     [LabelText("界面层级")]
-    public UILayerType LayerType;
+    public UILayerType LayerType = UILayerType.NORMAL;
 
     [LabelText("界面堆栈"), ShowIf("LayerType", UILayerType.NORMAL)]
     public bool NeedPush = false;
@@ -47,9 +47,13 @@ abstract public class UIBase : BaseBehaviour
     protected Vector3 lastPosition;
     protected bool isVisible = true;
 
-    protected override void OnAwake()
+    private void Awake()
     {
-        base.OnAwake();
+        OnAwake();
+    }
+
+    protected virtual void OnAwake()
+    {
         InitComponent();
     }
 
@@ -69,15 +73,23 @@ abstract public class UIBase : BaseBehaviour
     /// 打开此界面会回调此方法
     /// </summary>
     /// <param name="callback"></param>
-    internal virtual void OnOpen(Action callback = null) { callback?.Invoke();}
+    internal virtual void OnOpen(Action callback = null) { callback?.Invoke(); }
 
     /// <summary>
     /// 关闭此界面
     /// </summary>
     /// <param name="callback"></param>
-    protected virtual void Close(Action callback = null)
+    protected void Close(Action callback = null)
     {
-        UIManager.Instance().Close(GetType(), callback);
+        switch (LayerType)
+        {
+            case UILayerType.NORMAL:
+                UIManager.Instance().UIBackSequence(callback);
+                break;
+            default:
+                UIManager.Instance().Close(GetType(), callback);
+                break;
+        }
     }
 
     /// <summary>
@@ -86,7 +98,7 @@ abstract public class UIBase : BaseBehaviour
     /// <param name="callback"></param>
     internal virtual void CloseAction(Action callback = null)
     {
-        GameObjectPoolManager.Instance().ReturnObject(gameObject);
+        ReturnObjects();
         callback?.Invoke();
     }
 
@@ -123,6 +135,11 @@ abstract public class UIBase : BaseBehaviour
     protected void AddClick(Button button, UnityAction method)
     {
         button.onClick.AddListener(method);
+    }
+
+    protected void RemoveClick(Button button)
+    {
+        button.onClick.RemoveAllListeners();
     }
 
     protected override void UnloadAsset()

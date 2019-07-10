@@ -84,7 +84,16 @@ public class GameObjectAgent
     /// 【异步方法】从GameObjectPool内取一组GameObject/先加载资源后实例化GameObject
     /// </summary>
     /// <returns></returns>
-    static public void FetchObjectAsync(Transform parent, string[] paths, Action<GameObject[]> callback, object observer, bool active = true)
+    static public void FetchObjectAsync(Transform parent, ICollection<string> paths, Action<GameObject[]> callback, object observer, bool active = true)
+    {
+        FetchObjectAsync<GameObjectPool>(parent, paths, callback, observer, active);
+    }
+
+    /// <summary>
+    /// 【异步方法】从GameObjectPool内取一组GameObject/先加载资源后实例化GameObject
+    /// </summary>
+    /// <returns></returns>
+    static public void FetchObjectAsync<T>(Transform parent, ICollection<string> paths, Action<GameObject[]> callback, object observer, bool active = true) where T:GameObjectPool
     {
         ResourcesManager.LoadAsync<GameObject>(paths, (prefabs) =>
         {
@@ -93,13 +102,13 @@ public class GameObjectAgent
             {
                 foreach (GameObject prefab in prefabs)
                 {
-                    objs.Add(FetchObject(parent, prefab, active));
+                    objs.Add(FetchObject<T>(parent, prefab, observer, active));
                 }
 
                 callback(objs.ToArray());
             }
 
-        },  ExtensionType.prefab, observer);
+        }, ExtensionType.prefab, observer);
     }
 
     /// <summary>
@@ -115,7 +124,8 @@ public class GameObjectAgent
     {
         ResourcesManager.LoadAsync<GameObject>(path, (prefab) =>
         {
-            callback?.Invoke(FetchObject<T>(parent, prefab, observer, active));
+            GameObject obj = FetchObject<T>(parent, prefab, observer, active);
+            callback?.Invoke(obj);
         },  ExtensionType.prefab, observer);
     }
 

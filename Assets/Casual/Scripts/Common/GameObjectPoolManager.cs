@@ -44,7 +44,7 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
         _poolRoot = new GameObject("GameObjectPoolManager").transform;
         GameObject.DontDestroyOnLoad(_poolRoot.gameObject);
 
-        GameContext.UpdateEvent += Update;
+        MonoContext.UpdateEvent += Update;
     }
 
     private T GetPool<T>(Object prefab) where T : GameObjectPool
