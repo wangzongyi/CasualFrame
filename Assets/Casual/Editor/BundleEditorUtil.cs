@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using Casual;
 
 public enum BundleNameType
 {
@@ -14,77 +15,51 @@ public enum BundleNameType
     [LabelText("递归至根目录")]
     RootFolder = 2,
     [LabelText("自身文件名")]
-    FileName = 4,
-    [LabelText("递归目录路径至文件")]
-    FolderDeepPath = 8,
+    FileName = 3,
 }
 
 [TypeInfoBox("文件夹【Assets/Casual/Bundle】下所有文件打包策略:默认按文件上层文件夹名打包")]
 public class BundleEditorUtil : SerializedScriptableObject
 {
-    [FoldoutGroup("配置文件列表"), LabelText("文件夹"), FolderPath(), InfoBox("每次清空")]
-    public List<string> IgnoreConfigFolders = new List<string>();
-
     [FoldoutGroup("忽略列表"), LabelText("文件夹"), FolderPath()]
     [InfoBox("忽略列表下的文件将不会被打进包里")]
-    public List<string> IgnoreFolders = new List<string>();
+    public  List<string> IgnoreFolders = new List<string>();
 
     [FoldoutGroup("忽略列表"), LabelText("文件名"), FilePath()]
-    public List<string> IgnoreFiles = new List<string>();
+    public  List<string> IgnoreFiles = new List<string>();
 
     [FoldoutGroup("自身文件名"), HideLabel, FolderPath()]
     [InfoBox("Asset Bundle Name：自身文件名（不包含文件名后缀）")]
-    public List<string> SelfNameFolders = new List<string>();
-
-    [FoldoutGroup("保留文件路径"), HideLabel, FolderPath()]
-    [InfoBox("Asset Bundle Name：从根目录递归至文件上层文件夹")]
-    public List<string> RootFolders = new List<string>();
+    public  List<string> SelfNameFolders = new List<string>();
 
     private const string INIT_ASSET_NAME = "Editor/BundlePolicy.asset";
-    private string AssetBundlePathRoot = Path.GetFullPath("Assets/Casual/Bundle/");
 
     [Button("开始批处理", ButtonSizes.Gigantic)]
-    public void Batch()
+    public  void Batch()
     {
-        clearConfig();
         List<string> paths = new List<string>();
         EditorUtils.Recursive(paths, Path.GetFullPath("Assets/Casual/Bundle"));
         for (int index = 0, len = paths.Count; index < len; index++)
         {
             EditorUtility.DisplayProgressBar("Set bundle name", string.Format("{0}/{1}", index, len), index * 1.0f / len);
-            if (CheckIgnore(paths[index]) || CheckSelfName(paths[index]) || CheckRootFolder(paths[index]))
+
+            if (CheckIgnore(paths[index]) || CheckSelfName(paths[index]))
                 continue;
 
-            SetBundleName(paths[index], AssetBundlePathRoot, BundleNameType.FolderDeepPath);
+            SetBundleName(paths[index], BundleNameType.Folder);
         }
 
-        AssetDatabase.RemoveUnusedAssetBundleNames();
-        AssetDatabase.Refresh();
         EditorUtility.ClearProgressBar();
+        AssetDatabase.RemoveUnusedAssetBundleNames();
     }
 
-
-    void clearConfig()
-    {
-        foreach (var item in IgnoreConfigFolders)
-        {
-            var fullPath = Path.GetFullPath(item);
-            DirectoryInfo directory = new DirectoryInfo(fullPath);
-            FileInfo[] fileInfo = directory.GetFiles("*", SearchOption.AllDirectories);
-            for (int i = 0; i < fileInfo.Length; i++)
-            {
-                fileInfo[i].Delete();
-            }
-        }
-    }
-
-    bool CheckIgnore(string filePath)
+     bool CheckIgnore(string filePath)
     {
         foreach (var ignoreFile in IgnoreFiles)
         {
             if (!string.IsNullOrEmpty(ignoreFile) && filePath.Contains(ignoreFile))
             {
-                SetBundleName(filePath, null, BundleNameType.None);
+                SetBundleName(filePath, BundleNameType.None);
                 return true;
             }
         }
@@ -93,7 +68,7 @@ public class BundleEditorUtil : SerializedScriptableObject
         {
             if (!string.IsNullOrEmpty(ignoreDir) && filePath.Contains(ignoreDir))
             {
-                SetBundleName(filePath, null, BundleNameType.None);
+                SetBundleName(filePath, BundleNameType.None);
                 return true;
             }
         }
@@ -101,64 +76,63 @@ public class BundleEditorUtil : SerializedScriptableObject
         return false;
     }
 
-    bool CheckSelfName(string filePath)
+    /// <summary>
+    /// 自身文件名
+    /// </summary>
+    /// <param name="filePath"></param>
+    /// <returns></returns>
+     bool CheckSelfName(string filePath)
     {
+        FileInfo fileInfo = new FileInfo(filePath);
+        string dirPath = fileInfo.Directory.FullName;
+
         foreach (var dir in SelfNameFolders)
         {
-            if (!string.IsNullOrEmpty(dir) && filePath.Contains(dir))
+            if (!string.IsNullOrEmpty(dir) && Path.GetFullPath(dir) == dirPath)
             {
-                SetBundleName(filePath, null, BundleNameType.FileName);
+                SetBundleName(filePath, BundleNameType.FileName);
                 return true;
             }
         }
         return false;
     }
 
-    bool CheckRootFolder(string filePath)
+    public static void SetBundleName(string filePath, BundleNameType bundleNameType)
     {
-        foreach (var rootFolder in RootFolders)
-        {
-            if (!string.IsNullOrEmpty(rootFolder) && filePath.Contains(rootFolder))
-            {
-                SetBundleName(filePath, Path.Combine(Environment.CurrentDirectory, rootFolder).Replace('\\', '/'), BundleNameType.RootFolder);
-                return true;
-            }
-        }
-        return false;
-    }
+        string assetRoot = Path.Combine(Environment.CurrentDirectory, GameConfigs.AssetRoot).Replace('\\', '/');//D:\汤姆猫英语\TTEnglish-U3D\Assets\Casual\Bundle
+        string rootDir = Path.GetDirectoryName(assetRoot).Replace('\\', '/') + "/";//D:/汤姆猫英语/TTEnglish-U3D/Assets/Casual/Bundle
+        string relativePath = filePath.Replace(rootDir, "");//Animation/*
+        relativePath = relativePath.Replace(Path.GetExtension(relativePath), "");
+        string relativeDir = Path.GetDirectoryName(relativePath).Replace('\\', '/');
 
-    public static void SetBundleName(string filePath, string assetRoot, BundleNameType bundleNameType)
-    {
         string assetPath = filePath.Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", "");
         AssetImporter assetImporter = AssetImporter.GetAtPath(assetPath);
-        switch (bundleNameType)
+
+        if (assetImporter != null)
         {
-            case BundleNameType.FileName:
-                assetImporter.assetBundleName = Path.GetFileNameWithoutExtension(filePath);
-                assetImporter.assetBundleVariant = GameConfigs.ExtName.Replace(".", "");
-                break;
-            case BundleNameType.Folder:
-                assetImporter.assetBundleName = Path.GetFileName(Path.GetDirectoryName(filePath));
-                assetImporter.assetBundleVariant = GameConfigs.ExtName.Replace(".", "");
-                break;
-            case BundleNameType.RootFolder:
-                string rootDir = Path.GetDirectoryName(assetRoot).Replace('\\', '/') + "/";
-                string relativePath = filePath.Replace(rootDir, "");
-                relativePath = relativePath.Replace(Path.GetExtension(relativePath), "");
-                string relativeDir = Path.GetDirectoryName(relativePath).Replace('\\', '/');
-                assetImporter.assetBundleName = relativeDir;
-                assetImporter.assetBundleVariant = GameConfigs.ExtName.Replace(".", "");
-                break;
-            case BundleNameType.FolderDeepPath:
-                string root_path = Path.GetDirectoryName(assetRoot).Replace('\\', '/') + "/";
-                string ab_path_name = filePath.Replace(root_path, "").Replace(Path.GetExtension(filePath), "");
-                assetImporter.assetBundleName = ab_path_name;
-                assetImporter.assetBundleVariant = GameConfigs.ExtName.Replace(".", "");
-                break;
-            case BundleNameType.None:
-                assetImporter.assetBundleName = null;
-                break;
+            switch (bundleNameType)
+            {
+                case BundleNameType.FileName:
+                    assetImporter.assetBundleName = relativeDir + "/" + Path.GetFileNameWithoutExtension(filePath);
+                    assetImporter.assetBundleVariant = GameConfigs.ExtName.Replace(".", "");
+                    break;
+                case BundleNameType.Folder:
+                    string parentFolder = Path.GetDirectoryName(filePath);
+                    bool hasOtherFolder = new DirectoryInfo(parentFolder).GetDirectories().Length > 0;
+
+                    assetImporter.assetBundleName = relativeDir + (hasOtherFolder ? "/" + Path.GetFileNameWithoutExtension(filePath) : "");
+                    assetImporter.assetBundleVariant = GameConfigs.ExtName.Replace(".", "");
+                    break;
+                case BundleNameType.None:
+                    assetImporter.assetBundleName = null;
+                    break;
+            }
         }
+        else
+        {
+            Debug.LogWarning ("cant find path creat  AssetImporter: " + assetPath);
+        }
+
     }
 
     private static BundleEditorUtil instance;
@@ -168,7 +142,6 @@ public class BundleEditorUtil : SerializedScriptableObject
         {
             if (!instance)
             {
-#if UNITY_EDITOR
                 instance = UnityEditor.AssetDatabase.LoadAssetAtPath<BundleEditorUtil>(GameConfigs.GameRoot + "/" + INIT_ASSET_NAME);
                 if (instance == null)
                 {
@@ -176,7 +149,6 @@ public class BundleEditorUtil : SerializedScriptableObject
                     UnityEditor.AssetDatabase.CreateAsset(instance, GameConfigs.GameRoot + "/" + INIT_ASSET_NAME);
                     UnityEditor.AssetDatabase.Refresh();
                 }
-#endif
             }
             return instance;
         }

@@ -140,11 +140,12 @@ public class EditorUtils : Editor
         TextureImporter importer = AssetImporter.GetAtPath(filePath) as TextureImporter;
         importer.textureType = TextureImporterType.Sprite;
 
-        //int maxTextureSize = Mathf.Clamp(Mathf.Max(tex.Width, tex.Height), 32, 2048);
+        int max = importer.GetPlatformTextureSettings("Android").maxTextureSize;
+
         TextureImporterPlatformSettings androidSettings = new TextureImporterPlatformSettings()
         {
             overridden = true,
-            maxTextureSize = 2048,
+            maxTextureSize = max > 2048? 2048 : max,
             format = TextureImporterFormat.ETC2_RGB4,
             allowsAlphaSplitting = true,
             compressionQuality = 100,
@@ -154,7 +155,7 @@ public class EditorUtils : Editor
         TextureImporterPlatformSettings iphoneSettings = new TextureImporterPlatformSettings()
         {
             overridden = true,
-            maxTextureSize = 2048,
+            maxTextureSize = max > 2048 ? 2048 : max,
             format = TextureImporterFormat.PVRTC_RGB4,
             allowsAlphaSplitting = false,
             compressionQuality = 100,
@@ -163,9 +164,9 @@ public class EditorUtils : Editor
 
         //importer.SetPlatformTextureSettings("Android", Mathf.Max(tex.width, tex.height), TextureImporterFormat.ETC_RGB4, 100, true);
         //importer.SetPlatformTextureSettings("iPhone", Mathf.Max(tex.width, tex.height), TextureImporterFormat.RGBA16, 100, false);
-        importer.textureType = TextureImporterType.Default;
+        importer.textureType = TextureImporterType.Sprite;
         importer.mipmapEnabled = false;
-        importer.npotScale = TextureImporterNPOTScale.ToNearest;
+        //importer.npotScale = TextureImporterNPOTScale.ToNearest;
 
         importer.SetPlatformTextureSettings(androidSettings);
         importer.SetPlatformTextureSettings(iphoneSettings);
@@ -223,7 +224,7 @@ public class EditorUtils : Editor
 
         for (int index = 0, len = bbis.Count; index < len; index++)
         {
-            BundleEditorUtil.SetBundleName(bbis[index].AssetPath, bbis[index].AssetRoot, bundleNameType);
+            BundleEditorUtil.SetBundleName(bbis[index].AssetPath, bundleNameType);
             EditorUtility.DisplayProgressBar("Set bundle name", string.Format("{0}/{1}", index, len), index * 1.0f / len);
         }
 
