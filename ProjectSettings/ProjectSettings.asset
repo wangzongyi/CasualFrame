@@ -549,6 +549,7 @@ PlayerSettings:
   webGLUseWasm: 0
   webGLCompressionFormat: 1
   scriptingDefineSymbols:
+    1: ODIN_INSPECTOR
     7: ODIN_INSPECTOR
   platformArchitecture: {}
   scriptingBackend: {}

@@ -130,7 +130,7 @@ public class BundleEditorUtil : SerializedScriptableObject
         }
         else
         {
-            Debug.LogWarning ("cant find path creat  AssetImporter: " + assetPath);
+            Debug.LogWarning("cant find path creat  AssetImporter: " + assetPath);
         }
 
     }

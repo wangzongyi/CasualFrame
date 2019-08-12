@@ -6,7 +6,7 @@ using UnityEditor;
 
 public class GameEditorWindows : OdinMenuEditorWindow
 {
-    [MenuItem("Tools/Game Editor")]
+    [MenuItem("Tools/Game Editor", priority = -100)]
     private static void Open()
     {
         var window = GetWindow<GameEditorWindows>();
@@ -15,12 +15,16 @@ public class GameEditorWindows : OdinMenuEditorWindow
 
     protected override OdinMenuTree BuildMenuTree()
     {
-        var tree = new OdinMenuTree(true);
-        tree.DefaultMenuStyle.IconSize = 28.00f;
+        var tree = new OdinMenuTree(true)
+        {
+            {"游戏开发配置",GameConfigs.Instance, EditorIcons.SettingsCog},
+            {"资源生成策略",BundleEditorUtil.Instance, EditorIcons.Folder},
+        };
+        //tree.DefaultMenuStyle.IconSize = 28.00f;
         tree.Config.DrawSearchToolbar = true;
-        
-        tree.AddObjectAtPath("游戏开发配置", GameConfigs.Instance).AddIcon(EditorIcons.SettingsCog);
-        tree.AddObjectAtPath("资源生成策略", BundleEditorUtil.Instance).AddIcon(EditorIcons.Folder);
+
+        //游戏配置工具
+        tree.AddObjectAtPath("策划配置编译", new ConfigEditor()).AddIcon(EditorIcons.File);
 
         return tree;
     }
