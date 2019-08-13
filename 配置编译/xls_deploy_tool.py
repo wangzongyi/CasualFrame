@@ -579,6 +579,8 @@ class DataParser:
                 return str(field_value)
             elif field_type == "bytes":
                 return str(field_value).encode('utf-8')
+            elif field_type == "bool":
+                return str.lower(str(field_value)) == str.lower(str(True)) or str(field_value) == "1"
             else:
                 return None
         except BaseException as error:
@@ -634,6 +636,7 @@ if __name__ == '__main__':
         sys.exit(-1)
 
     for line in open(compile_file_path, "r+"):
+        line = line.strip()
         for xls_file_path in glob.glob(line):
             try:
                 workbook = xlrd.open_workbook(xls_file_path)
