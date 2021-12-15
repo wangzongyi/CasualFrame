@@ -5,3 +5,6 @@
 /Temp
 /Library
 /.vs
+/obj
+/Logs/Packages-Update.log
+/Packages/packages-lock.json
