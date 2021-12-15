@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2f61374947ffcd438a84541975592c5, type: 3}
+  m_Name: BuildEditor
+  m_EditorClassIdentifier: 
+  serializationData:
+    SerializedFormat: 2
+    SerializedBytes: 
+    ReferencedUnityObjects: []
+    SerializedBytesString: 
+    Prefab: {fileID: 0}
+    PrefabModificationsReferencedUnityObjects: []
+    PrefabModifications: []
+    SerializationNodes: []
+  OutputPath: 
+  CopyToStreamingAssets: 0
+  CompressOptions: 1
+  BundleOptions: 0
+  BundlePolicy: {fileID: 11400000, guid: d14ca1cc64253ec4d889aa19bfc8623a, type: 2}
+  GameConfigs: {fileID: 11400000, guid: 8f0603baec706bd4fb9eb35cc17e13e9, type: 2}
+  ExportProjectPath: 
+  NativeProjectPath: 

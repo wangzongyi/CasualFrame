@@ -64,7 +64,7 @@ public class AssetBundleLoader : Singleton<AssetBundleLoader>
     // Load AssetBundleManifest.
     protected override void Init()
     {
-        if (!GameConfigs.DebugMode)
+        if (GameConfigs.PublishMode == PublishMode.Release)
         {
             LoadMainifest();
             LoadAssetPathInfos();

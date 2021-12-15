@@ -52,7 +52,6 @@ public class ObjectPoolManager : Singleton<ObjectPoolManager>
         }
     }
 
-
     private readonly Dictionary<Type, ObjectPool> _objectPools = new Dictionary<Type, ObjectPool>();
     private const int MAX_SIZE = 20;
 

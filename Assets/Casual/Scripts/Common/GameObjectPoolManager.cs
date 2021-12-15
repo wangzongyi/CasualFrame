@@ -14,7 +14,7 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
     /// <summary>
     /// 间隔帧删除检测
     /// </summary>
-    const int DELETE_INTERVAL_FRAMES = 60;
+    const int DELETE_INTERVAL_FRAMES = 2;
     /// <summary>
     /// 每帧隐藏物体数量
     /// </summary>
@@ -22,7 +22,7 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
     /// <summary>
     /// Active时间
     /// </summary>
-    const float STAY_ACTIVE_TIME = 10.0f;
+    const float STAY_ACTIVE_TIME = 0f;
 
     private Transform _poolRoot;
 
@@ -42,9 +42,10 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
     protected override void Init()
     {
         _poolRoot = new GameObject("GameObjectPoolManager").transform;
-        GameObject.DontDestroyOnLoad(_poolRoot.gameObject);
+        Object.DontDestroyOnLoad(_poolRoot.gameObject);
 
-        MonoContext.UpdateEvent += Update;
+        MonoContext.LaterUpdateEvent += LaterUpdate;
+        Debug.Log("GameObjectPoolManager Init!");
     }
 
     private T GetPool<T>(Object prefab) where T : GameObjectPool
@@ -57,9 +58,9 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
         return (T)_objectPools[prefab];
     }
 
-    public void FetchObjects(Object prefab, int count = 1)
+    public void PreloadObjects(Object prefab, int count = 1)
     {
-        FetchObjects<GameObjectPool>(prefab, count);
+        PreloadObjects<GameObjectPool>(prefab, count);
     }
 
     /// <summary>
@@ -68,7 +69,7 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
     /// <param name="prefab"></param>
     /// <param name="count"></param>
     /// <param name="type"></param>
-    public void FetchObjects<T>(Object prefab, int count = 1) where T : GameObjectPool
+    public void PreloadObjects<T>(Object prefab, int count = 1) where T : GameObjectPool
     {
         if (prefab == null)
         {
@@ -84,7 +85,7 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
 
         for (int i = 0; i < count; ++i)
         {
-            ReturnObject(list[i]);
+            ReleaseObject(list[i]);
         }
     }
 
@@ -93,12 +94,12 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
         return FetchObject<GameObjectPool>(null, prefab, active);
     }
 
-    public GameObject FetchObject(Transform parent, Object prefab,  bool active = true)
+    public GameObject FetchObject(Transform parent, Object prefab, bool active = true)
     {
         return FetchObject<GameObjectPool>(parent, prefab, active);
     }
 
-    public GameObject FetchObject<T>(Object prefab, bool active = true)where T : GameObjectPool
+    public GameObject FetchObject<T>(Object prefab, bool active = true) where T : GameObjectPool
     {
         return FetchObject<T>(null, prefab, active);
     }
@@ -109,26 +110,20 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
     /// <param name="prefab"></param>
     /// <param name="active"></param>
     /// <returns></returns>
-    public GameObject FetchObject<T>(Transform parent, Object prefab,  bool active = true) where T : GameObjectPool
+    public GameObject FetchObject<T>(Transform parent, Object prefab, bool active = true) where T : GameObjectPool
     {
-        if (prefab == null || typeof(T) == typeof(NullPool))
+        if (prefab == null)
             return null;
 
         T instPool = GetPool<T>(prefab);
-        GameObject inst = null;
-
-        inst = instPool.Dequeue();
-
-        if (inst == null)
+        GameObject inst = instPool.Dequeue(prefab, parent);
+        if (inst != null)
         {
-            TryGetInstRoot(prefab);
-            inst = (GameObject)Object.Instantiate(prefab);
-            _instanceMap.Add(inst, prefab);
+            inst.transform.SetParent(parent, false);
+            instPool.DequeueAction(inst, (GameObject)prefab, active);
+            RemoveDisableObject(inst);
+            if (typeof(T) != typeof(NullPool)) _instanceMap[inst] = prefab;
         }
-
-        if(inst != null) inst.transform.SetParent(parent, false);
-        instPool.DequeueAction(inst, (GameObject)prefab, active);
-        RemoveDisableObject(inst);
 
         return inst;
     }
@@ -137,7 +132,7 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
     /// param must be an instance
     /// </summary>
     /// <param name="inst"></param>
-    public void ReturnObject(GameObject inst)
+    public void ReleaseObject(GameObject inst)
     {
         if (inst == null || !_poolRoot)
         {
@@ -146,25 +141,22 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
 
         if (!_instanceMap.ContainsKey(inst))
         {
-            GameObject.Destroy(inst);
+            Object.DestroyImmediate(inst);
             return;
         }
 
         Object prefab = _instanceMap[inst];
         GameObjectPool instPool = GetPool<GameObjectPool>(prefab);
+        _instanceMap.Remove(inst);
 
-        if (instPool.Count >= MAX_POOL_OBJECT_SIZE)
+        if (instPool.Count >= MAX_POOL_OBJECT_SIZE)//超出对象池最大数量，则直接销毁
         {
-            GameObject.Destroy(inst);
-            _instanceMap.Remove(inst);
+            Object.DestroyImmediate(inst);
             return;
         }
 
         Transform instRoot = TryGetInstRoot(prefab);
-
-        instPool.Enqueue(inst);
-        instPool.EnqueueAction(inst, instRoot);
-
+        instPool.Enqueue(inst, instRoot);
         AddDisableObject(inst);
     }
 
@@ -172,7 +164,7 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
     {
         string rootName = string.Format("[{0}|{1}]", prefab.name, prefab.GetInstanceID());
         Transform root = _poolRoot.Find(rootName);
-        if(root == null)
+        if (root == null)
         {
             GameObject newRoot = new GameObject(rootName);
             newRoot.transform.SetParent(_poolRoot, false);
@@ -182,19 +174,38 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
         return root;
     }
 
-    public void ClearPoolObj()
+    void RemoveInstRoot(string rootName)
     {
-        foreach (GameObjectPool objectPool in _objectPools.Values)
+        Transform root = _poolRoot.Find(rootName);
+        if (root)
         {
-            objectPool.ClearThisPool();
+            Object.DestroyImmediate(root.gameObject);
         }
-
-        _objectPools.Clear();
-        _instanceMap.Clear();
-        _disablePool.Clear();
     }
 
-    private void Update()
+    public void ClearPools()
+    {
+        List<Object> tempPoolKeys = new List<Object>();
+        foreach (var pool in _objectPools)
+        {
+            pool.Value.DequeueUnUsed((instance) =>
+            {
+                if (_instanceMap.ContainsKey(instance))
+                {
+                    _instanceMap.Remove(instance);
+                }
+            });
+            if (pool.Value.ReferenceCount == 0)
+                tempPoolKeys.Add(pool.Key);
+        }
+        foreach (var prefab in tempPoolKeys)
+        {
+            RemoveInstRoot(_objectPools[prefab].Name);
+            _objectPools.Remove(prefab);
+        }
+    }
+
+    private void LaterUpdate()
     {
         if (Time.frameCount % DELETE_INTERVAL_FRAMES != 0)
             return;
@@ -220,13 +231,13 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
 
             RemoveDisableObject(disableObject);
         }
-        
+
         _tempDisablePool.Clear();
     }
 
     private void AddDisableObject(GameObject disableObject)
     {
-        if(!_disablePool.ContainsKey(disableObject))
+        if (!_disablePool.ContainsKey(disableObject))
         {
             _disablePool.Add(disableObject, Time.realtimeSinceStartup);
         }
@@ -234,7 +245,7 @@ public partial class GameObjectPoolManager : Singleton<GameObjectPoolManager>
 
     private void RemoveDisableObject(GameObject disableObject)
     {
-        if(_disablePool.ContainsKey(disableObject))
+        if (_disablePool.ContainsKey(disableObject))
         {
             _disablePool.Remove(disableObject);
         }

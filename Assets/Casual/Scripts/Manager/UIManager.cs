@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Sirenix.OdinInspector;
 
 public class UISession : IDisposable
 {
@@ -26,24 +27,42 @@ public class UISession : IDisposable
     }
 }
 
+
 public class UIManager : MonoSingleton<UIManager>
 {
-    [SerializeField]
+    public enum LoadState
+    {
+        loading,
+        breakup,
+        done
+    }
+
+    [SerializeField, LabelText("UICamera")]
     private Camera uiCamera;
     public static Camera UICamera { get { return Instance().uiCamera; } }
 
-    [SerializeField]
+    [SerializeField, LabelText("LayerRoot")]
     private Canvas[] layerRoot = new Canvas[(int)UILayerType.MAX];
 
-    private HashSet<Type> loadingUI = new HashSet<Type>();
-    private Dictionary<Type, UIBase> allPages = new Dictionary<Type, UIBase>();
     //private Queue<UIBase>
     private UISession currentSession;
     private Stack<UISession> backSequence = new Stack<UISession>();
+    private Dictionary<Type, LoadState> loadState = new Dictionary<Type, LoadState>();
+    /// <summary>
+    /// 存储有唯一标志的界面
+    /// </summary>
+    private Dictionary<Type, UIBase> existUnique = new Dictionary<Type, UIBase>();
+    private Dictionary<int/*instanceID*/, UIBase> existExtra = new Dictionary<int, UIBase>();
 
     private const string UI_PREFAB_PATH = "{0}/Prefab/UI/{1}.prefab";
 
     public override void Init()
+    {
+        RegisterObjectPool();
+        CalculateScreenSize();
+    }
+
+    private void RegisterObjectPool()
     {
         ObjectPoolManager.Instance().RegistCreater<UISession>(() =>
         {
@@ -51,99 +70,110 @@ public class UIManager : MonoSingleton<UIManager>
         });
     }
 
-    public void Open<T>(Action callback = null) where T : UIBase
+    private void CalculateScreenSize()
     {
-        Open<T>(typeof(T).Name, callback);
+        UnityUtils.CalculateScreenSize();
+        Debug.LogFormat("屏幕分辨率为：{0}。", GameConfigs.ScreenSizeLogic);
     }
 
-    public void Open<T>(string prefabName) where T : UIBase
+    public Coroutine Open<T>(Action callback = null) where T : UIBase
     {
-        Open<T>(prefabName, null, null);
+        return Open<T>(null, callback);
     }
 
-    public void Open<T>(string prefabName, Action callback) where T : UIBase
+    public Coroutine Open<T>(object data, Action callback = null) where T : UIBase
     {
-        Open<T>(prefabName, null, callback);
+        return Open(typeof(T), data, callback);
     }
 
-    public void Open<T>(string prefabName, object data, Action callback = null) where T : UIBase
+    private Coroutine Open(Type pageType, object data, Action callback = null)
     {
-        Type pageType = typeof(T);
-        Open(pageType, prefabName, data, callback, true);
-    }
-
-    private void Open(Type pageType, string prefabName, object data, Action callback = null, bool pushCurrentToBack = true)
-    {
-        if (IsExist(pageType))
+        string assetPath = UIPathMapping.Instance().GetAssetPath(pageType);
+        if (NullCheck.IsNotNull(assetPath, string.Format(LogMessage.ASSET_LOADED_FAILED, pageType.ToString())))
         {
-            allPages[pageType].InitData(data);
-            allPages[pageType].OnOpen(callback);
+            return OpenByFullPath(pageType, assetPath, data, callback, true);
         }
-        else if (!loadingUI.Contains(pageType))
-        {
-            loadingUI.Add(pageType);
-            prefabName = string.Format(UI_PREFAB_PATH, GameConfigs.AssetRoot, prefabName);
-            ResourcesManager.LoadAsyncWithFullPath<GameObject>(prefabName, (prefab) =>
-            {
-                LoadDone(pageType, prefab, prefabName, data, callback, pushCurrentToBack);
-            });
-        }
+
+        return null;
     }
 
-    private void OpenByFullPath(Type pageType, string fullPrefabName, object data, Action callback = null, bool pushCurrentToBack = true, Action closeAction = null)
+    private Coroutine OpenByFullPath(Type pageType, string fullPrefabName, object data, Action callback = null, bool pushCurrentToBack = true, Action closeAction = null)
     {
-        if (IsExist(pageType))
+        if (IsExistUnique(pageType))
         {
-            allPages[pageType].InitData(data);
-            allPages[pageType].OnOpen(callback);
+            existUnique[pageType].InitData(data);
+            existUnique[pageType].LoadAsset(callback);
         }
-        else if (!loadingUI.Contains(pageType))
+        else if (!loadState.ContainsKey(pageType) || loadState[pageType] != LoadState.loading)
         {
-            loadingUI.Add(pageType);
-            ResourcesManager.LoadAsyncWithFullPath<GameObject>(fullPrefabName, (prefab) =>
+            loadState[pageType] = LoadState.loading;
+            return ResourcesManager.LoadAsyncWithFullPath<GameObject>(fullPrefabName, (prefab) =>
             {
                 LoadDone(pageType, prefab, fullPrefabName, data, callback, pushCurrentToBack);
                 closeAction?.Invoke();
             });
         }
+
+        return null;
     }
 
     private void LoadDone(Type pageType, GameObject prefab, string fullPrefabName, object data, Action callback, bool pushCurrentToBack)
     {
-        GameObject uiInstance = GameObjectPoolManager.Instance().FetchObject<UIPool>(prefab);
-        UIBase uiPage = (UIBase)(uiInstance.GetComponent(pageType) ?? uiInstance.AddComponent(pageType));
-
-        uiInstance.transform.SetParent(layerRoot[(int)uiPage.LayerType].transform, false);
-
-        uiPage.InitData(data);
-        uiPage.InitPrefabName(fullPrefabName);
-
-        allPages[pageType] = uiPage;
-        loadingUI.Remove(pageType);
-
-        uiPage.OnOpen(callback);
-
-        if (uiPage.LayerType == UILayerType.NORMAL)
+        //ui加载状态检测
+        if (loadState.ContainsKey(pageType))
         {
-            if (currentSession != null && IsExist(currentSession.PageType))
-            {
-                Type currentPageType = currentSession.PageType;
+            if (loadState[pageType] == LoadState.breakup)
+                return;
 
-                if (GetPage(currentPageType).NeedPush && pushCurrentToBack)
-                {
-                    backSequence.Push(currentSession);
-                }
-                else
-                {
-                    ObjectPoolManager.Instance().ReturnObject(currentSession);
-                }
-                Close(currentPageType);
+            GameObject uiInstance = GameObjectPoolManager.Instance().FetchObject<UIPool>(prefab);
+            UIBase uiPage = (UIBase)(uiInstance.GetComponent(pageType) ?? uiInstance.AddComponent(pageType));
+            uiInstance.name = prefab.name;
+
+            uiInstance.transform.SetParent(layerRoot[(int)uiPage.LayerType].transform, false);
+
+            uiPage.InitData(data);
+            uiPage.InitPrefabName(fullPrefabName);
+
+            if (uiPage.Unique)
+            {
+                existUnique[pageType] = uiPage;
+            }
+            else
+            {
+                existExtra[uiPage.GetInstanceID()] = uiPage;
             }
 
-            UISession uisession = ObjectPoolManager.Instance().FetchObject<UISession>();
-            uisession.Init(pageType, data, fullPrefabName, callback);
+            uiPage.LoadAsset(() =>
+            {
+                if (uiPage.LayerType == UILayerType.NORMAL)
+                {
+                    if (currentSession != null && IsExistUnique(currentSession.PageType))
+                    {
+                        Type currentPageType = currentSession.PageType;
 
-            currentSession = uisession;
+                        if (GetPage(currentPageType).NeedPush && pushCurrentToBack)
+                        {
+                            backSequence.Push(currentSession);
+                        }
+                        else
+                        {
+                            ObjectPoolManager.Instance().ReturnObject(currentSession);
+                        }
+                        CloseUnique(currentPageType);
+                    }
+
+                    UISession uisession = ObjectPoolManager.Instance().FetchObject<UISession>();
+                    uisession.Init(pageType, data, fullPrefabName, callback);
+
+                    currentSession = uisession;
+                }
+                loadState[pageType] = LoadState.done;
+                callback?.Invoke();
+            });
+        }
+        else
+        {
+            Debug.LogErrorFormat("UI [{0}] 加载出错 !", fullPrefabName);
         }
     }
 
@@ -162,25 +192,69 @@ public class UIManager : MonoSingleton<UIManager>
     private void CollectUI(UIBase uibase)
     {
         if (!uibase) return;
-        GameObjectPoolManager.Instance().ReturnObject(uibase.gameObject);
+        GameObjectPoolManager.Instance().ReleaseObject(uibase.gameObject);
     }
 
     public void Close<T>(Action callback = null) where T : UIBase
     {
-        Close(typeof(T), callback);
+        if (!CloseUnique(typeof(T), callback))
+        {
+            CloseExtra(typeof(T), callback);
+        }
     }
 
-    public void Close(Type pageType, Action callback = null)
+    public void Close(UIBase uibase, Action callback)
     {
-        if (IsExist(pageType))
+        if (uibase.Unique)
         {
+            CloseUnique(uibase.GetType(), callback);
+        }
+        else
+        {
+            CloseExtra(uibase, callback);
+        }
+    }
+
+    private bool CloseUnique(Type pageType, Action callback = null)
+    {
+        if (loadState.ContainsKey(pageType))
+        {
+            loadState[pageType] = LoadState.breakup;
+
             UIBase uiInstance = GetPage(pageType);
 
             if (uiInstance)
             {
-                uiInstance.CloseAction(callback);
+                existUnique.Remove(pageType);
+                uiInstance.BeforeClose(callback);
                 CollectUI(uiInstance);
-                Remove(pageType);
+
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void CloseExtra(UIBase uibase, Action callback = null)
+    {
+        Type pageType = uibase.GetType();
+        if (loadState.ContainsKey(pageType))
+        {
+            loadState[pageType] = LoadState.breakup;
+            existExtra.Remove(uibase.GetInstanceID());
+            uibase.BeforeClose(callback);
+            CollectUI(uibase);
+        }
+    }
+
+    private void CloseExtra(Type type, Action callback)
+    {
+        List<int> keys = new List<int>(existExtra.Keys);
+        for (int index = existExtra.Count - 1; index >= 0; index--)
+        {
+            if (existExtra[keys[index]].GetType() == type)
+            {
+                CloseExtra(existExtra[keys[index]], callback);
             }
         }
     }
@@ -188,24 +262,24 @@ public class UIManager : MonoSingleton<UIManager>
     public void Show<T>() where T : UIBase
     {
         Type pageType = typeof(T);
-        if (IsExist(pageType))
+        if (IsExistUnique(pageType))
         {
-            allPages[typeof(T)].Show();
+            existUnique[typeof(T)].Show();
         }
     }
 
     public void Hide<T>() where T : UIBase
     {
         Type pageType = typeof(T);
-        if (IsExist(pageType))
+        if (IsExistUnique(pageType))
         {
-            allPages[pageType].Hide();
+            existUnique[pageType].Hide();
         }
     }
 
     public void BatchShow()
     {
-        foreach (UIBase ui in allPages.Values)
+        foreach (UIBase ui in existUnique.Values)
         {
             if (ui) ui.Show();
         }
@@ -213,7 +287,7 @@ public class UIManager : MonoSingleton<UIManager>
 
     public void BatchHide()
     {
-        foreach (UIBase ui in allPages.Values)
+        foreach (UIBase ui in existUnique.Values)
         {
             if (ui) ui.Hide();
         }
@@ -221,39 +295,74 @@ public class UIManager : MonoSingleton<UIManager>
 
     public void BatchClose()
     {
-        List<Type> pageTypes = new List<Type>(allPages.Keys);
+        List<Type> pageTypes = new List<Type>(existUnique.Keys);
         foreach (Type pageType in pageTypes)
         {
-            Close(pageType);
+            CloseUnique(pageType);
         }
+
+        List<int> instanceIDs = new List<int>(existExtra.Keys);
+        foreach (int instanceID in instanceIDs)
+        {
+            CloseExtra(existExtra[instanceID]);
+        }
+
         backSequence.Clear();
         currentSession = null;
     }
 
-    public void Remove(Type pageType)
-    {
-        allPages.Remove(pageType);
-    }
-
     public bool IsExist<T>() where T : UIBase
     {
-        Type pageType = typeof(T);
-        return IsExist(pageType);
+        return IsExistUnique(typeof(T)) || IsExistExtra(typeof(T));
     }
 
-    public bool IsExist(Type pageType)
+    private bool IsExistUnique(Type pageType)
     {
-        return allPages.ContainsKey(pageType) && allPages[pageType];
+        return existUnique.ContainsKey(pageType) && existUnique[pageType];
     }
 
-    private T GetPage<T>() where T : UIBase
+    private bool IsExistExtra(Type pageType)
+    {
+        foreach (var uiBase in existExtra.Values)
+        {
+            if (uiBase.GetType() == pageType)
+                return true;
+        }
+        return false;
+    }
+
+    public bool IsExistPopup()
+    {
+        foreach (var type in existUnique.Keys)
+        {
+            if (type.BaseType.ToString().Contains("UIPopBase"))
+                return true;
+        }
+        return false;
+    }
+
+    public T GetPage<T>() where T : UIBase
     {
         Type pageType = typeof(T);
         return GetPage(pageType) as T;
     }
 
-    private UIBase GetPage(Type pageType)
+    public UIBase GetPage(Type pageType)
     {
-        return allPages.ContainsKey(pageType) ? allPages[pageType] : null;
+        return existUnique.ContainsKey(pageType) ? existUnique[pageType] : null;
+    }
+
+    public bool IsTransInScreen(Transform target, Vector3 offset)
+    {
+        Vector3 vecScreen = uiCamera.WorldToScreenPoint(target.position);
+        vecScreen += offset;
+        if (vecScreen.x > 0 && vecScreen.x < Screen.width && vecScreen.y > 0 && vecScreen.y < Screen.height)
+            return true;
+        return false;
+    }
+
+    public static void ScreenPointToUIPosition(Vector3 screenPoint, out Vector2 localPosition)
+    {
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(Instance().layerRoot[0].rectTransform(), screenPoint, UICamera, out localPosition);
     }
 }

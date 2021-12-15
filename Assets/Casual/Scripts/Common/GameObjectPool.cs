@@ -6,28 +6,32 @@ using UnityEngine;
 /// </summary>
 public class GameObjectPool
 {
+    public string Name { private set; get; }
+    public int ReferenceCount = 0;
     Queue<GameObject> objQueue = new Queue<GameObject>();
 
     /// <summary>
-    /// 如果池内已经有了该实例，直接返回
+    /// 存入实例
     /// </summary>
-    /// <param name="go"></param>
-    public void Enqueue(GameObject go)
+    /// <param name="inst"></param>
+    public void Enqueue(GameObject inst, Transform poolRoot)
     {
-        if (objQueue.Contains(go))
-            return;
-
-        objQueue.Enqueue(go);
+        ReferenceCount -= 1;
+        objQueue.Enqueue(inst);
+        EnqueueAction(inst, poolRoot);
+        Name = poolRoot.name;
     }
 
-    public GameObject Dequeue()
+    /// <summary>
+    /// 取出实例
+    /// </summary>
+    /// <param name="prefab"></param>
+    /// <param name="parent"></param>
+    /// <returns></returns>
+    public GameObject Dequeue(Object prefab, Transform parent)
     {
-        GameObject instObject = null;
-
-        if (objQueue.Count > 0)
-            instObject = objQueue.Dequeue();
-
-        return instObject;
+        ReferenceCount += 1;
+        return objQueue.Count > 0 ? objQueue.Dequeue() : (GameObject)Object.Instantiate(prefab, parent, false);
     }
 
     public bool Contains(GameObject go)
@@ -41,11 +45,21 @@ public class GameObjectPool
     {
         while (objQueue.Count > 0)
         {
-            Object.Destroy(objQueue.Dequeue());
+            Object.DestroyImmediate(objQueue.Dequeue());
         }
     }
 
-    public virtual void EnqueueAction(GameObject inst, Transform poolRoot)
+    public void DequeueUnUsed(System.Action<GameObject> dequeueEvevryTime)
+    {
+        while (objQueue.Count > ReferenceCount)
+        {
+            GameObject instance = objQueue.Dequeue();
+            dequeueEvevryTime(instance);
+            Object.DestroyImmediate(instance);
+        }
+    }
+
+    protected virtual void EnqueueAction(GameObject inst, Transform poolRoot)
     {
         inst.transform.SetParent(poolRoot, false);
         inst.transform.position = Vector3.one * 10000;
@@ -65,7 +79,7 @@ public class GameObjectPool
             inst.transform.localPosition = prefab.transform.localPosition;
 
         inst.transform.rotation = prefab.transform.rotation;
-        inst.transform.localScale = prefab.transform.lossyScale;
+        inst.transform.localScale = prefab.transform.localScale;
 
         if (active && !inst.activeSelf)
         {
@@ -81,7 +95,7 @@ public class NullPool : GameObjectPool
 
 public class UIPool : GameObjectPool
 {
-    public override void EnqueueAction(GameObject inst, Transform poolRoot)
+    protected override void EnqueueAction(GameObject inst, Transform poolRoot)
     {
         inst.transform.localPosition = GameConfigs.DISABLE_POSITION;
         inst.transform.SetParent(poolRoot, false);

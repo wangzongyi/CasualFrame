@@ -1,9 +1,11 @@
-﻿#if UNITY_EDITOR
-//-----------------------------------------------------------------------
+﻿//-----------------------------------------------------------------------
 // <copyright file="EnsureOdinInspectorDefine.cs" company="Sirenix IVS">
 // Copyright (c) Sirenix IVS. All rights reserved.
 // </copyright>
 //-----------------------------------------------------------------------
+
+#if UNITY_EDITOR
+
 namespace Sirenix.Utilities
 {
     using System;
@@ -15,10 +17,10 @@ namespace Sirenix.Utilities
     /// </summary>
     internal static class EnsureOdinInspectorDefine
     {
-        private const string DEFINE = "ODIN_INSPECTOR";
+        private static readonly string[] DEFINES = new string[] { "ODIN_INSPECTOR", "ODIN_INSPECTOR_3" };
 
         [InitializeOnLoadMethod]
-        private static void AssureScriptingDefineSymbol()
+        private static void EnsureScriptingDefineSymbol()
         {
             var currentTarget = EditorUserBuildSettings.selectedBuildTargetGroup;
 
@@ -30,15 +32,24 @@ namespace Sirenix.Utilities
             var definesString = PlayerSettings.GetScriptingDefineSymbolsForGroup(currentTarget).Trim();
             var defines = definesString.Split(';');
 
-            if (defines.Contains(DEFINE) == false)
+            bool changed = false;
+
+            foreach (var define in DEFINES)
             {
-                if (definesString.EndsWith(";", StringComparison.InvariantCulture) == false)
+                if (defines.Contains(define) == false)
                 {
-                    definesString += ";";
+                    if (definesString.EndsWith(";", StringComparison.InvariantCulture) == false)
+                    {
+                        definesString += ";";
+                    }
+
+                    definesString += define;
+                    changed = true;
                 }
+            }
 
-                definesString += DEFINE;
-
+            if (changed)
+            {
                 PlayerSettings.SetScriptingDefineSymbolsForGroup(currentTarget, definesString);
             }
         }
@@ -106,4 +117,5 @@ namespace Sirenix.Utilities
     //        }
     //    }
 }
-#endif
+
+#endif // UNITY_EDITOR

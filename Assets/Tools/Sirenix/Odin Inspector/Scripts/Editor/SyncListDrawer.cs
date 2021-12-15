@@ -4,7 +4,8 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
-#if !UNITY_2019_1_OR_NEWER
+#if UNITY_EDITOR && !UNITY_2019_1_OR_NEWER
+#pragma warning disable 0618
 
 namespace Sirenix.OdinInspector.Editor.Drawers
 {
@@ -17,10 +18,15 @@ namespace Sirenix.OdinInspector.Editor.Drawers
     /// SyncList property drawer.
     /// </summary>
     [DrawerPriority(0, 0, 2)]
-#pragma warning disable 0618 // Type or member is obsolete
     public class SyncListDrawer<TList, TElement> : OdinValueDrawer<TList> where TList : SyncList<TElement>
-#pragma warning restore 0618 // Type or member is obsolete
     {
+        private LocalPersistentContext<bool> visible;
+
+        protected override void Initialize()
+        {
+            this.visible = this.Property.Context.GetPersistent(this, "expanded", GeneralDrawerConfig.Instance.OpenListsByDefault);
+        }
+
         /// <summary>
         /// Draws the property.
         /// </summary>
@@ -30,13 +36,6 @@ namespace Sirenix.OdinInspector.Editor.Drawers
             var property = entry.Property;
             int minCount = int.MaxValue;
             int maxCount = 0;
-
-            PropertyContext<bool> isVisible;
-
-            if (entry.Context.Get(this, "is_visible", out isVisible))
-            {
-                isVisible.Value = GeneralDrawerConfig.Instance.OpenListsByDefault;
-            }
 
             for (int i = 0; i < entry.ValueCount; i++)
             {
@@ -52,11 +51,11 @@ namespace Sirenix.OdinInspector.Editor.Drawers
             }
 
             SirenixEditorGUI.BeginHorizontalToolbar();
-            isVisible.Value = SirenixEditorGUI.Foldout(isVisible.Value, GUIHelper.TempContent("SyncList " + label.text + "  [" + typeof(TList).Name + "]"));
+            this.visible.Value = SirenixEditorGUI.Foldout(this.visible.Value, GUIHelper.TempContent("SyncList " + label.text + "  [" + typeof(TList).Name + "]"));
             EditorGUILayout.LabelField(GUIHelper.TempContent(minCount == maxCount ? (minCount == 0 ? "Empty" : minCount + " items") : minCount + " (" + maxCount + ") items"), SirenixGUIStyles.RightAlignedGreyMiniLabel);
             SirenixEditorGUI.EndHorizontalToolbar();
 
-            if (SirenixEditorGUI.BeginFadeGroup(isVisible, isVisible.Value))
+            if (SirenixEditorGUI.BeginFadeGroup(this.visible, this.visible.Value))
             {
                 GUIHelper.PushGUIEnabled(false);
                 SirenixEditorGUI.BeginVerticalList();
@@ -86,4 +85,4 @@ namespace Sirenix.OdinInspector.Editor.Drawers
     }
 }
 
-#endif // UNITY_2019_1_OR_NEWER
+#endif // UNITY_EDITOR && !UNITY_2019_1_OR_NEWER

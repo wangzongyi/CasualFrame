@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -7,7 +6,7 @@ public class CoroutineAgent : MonoSingleton<CoroutineAgent>
 {
     public static Coroutine StartCoroutine(string co, MonoBehaviour behaviour, object value = null)
     {
-        return behaviour.StartCoroutine(co, value);
+        return behaviour.isActiveAndEnabled ? behaviour.StartCoroutine(co, value) : null;
     }
 
     public static void StopCoroutine(string co, MonoBehaviour behaviour)
@@ -36,12 +35,12 @@ public class CoroutineAgent : MonoSingleton<CoroutineAgent>
         (behaviour ?? Instance()).StopCoroutine(co);
     }
 
-    public static Coroutine EndOfFrameOperation(System.Action operation, MonoBehaviour behaviour = null)
+    public static Coroutine WaitForEndOfFrame(System.Action operation, MonoBehaviour behaviour = null)
     {
         return DelayOperation(Yielders.WaitForEndOfFrame, operation, behaviour);
     }
 
-    public static Coroutine DelayOperation(float delay, System.Action operation, MonoBehaviour behaviour = null)
+    public static Coroutine WaitForSeconds(float delay, System.Action operation, MonoBehaviour behaviour = null)
     {
         return DelayOperation(Yielders.WaitForSeconds(delay), operation, behaviour);
     }
@@ -53,11 +52,8 @@ public class CoroutineAgent : MonoSingleton<CoroutineAgent>
 
     private static IEnumerator DoDelayOperation(YieldInstruction delay, System.Action operation)
     {
-        if (operation != null)
-        {
-            yield return delay;
-            operation();
-        }
+        yield return delay;
+        operation?.Invoke();
     }
 
     public static Coroutine DelayOperation(MonoBehaviour behaviour, params KeyValuePair<YieldInstruction, System.Action>[] operations)
@@ -79,12 +75,12 @@ public class CoroutineAgent : MonoSingleton<CoroutineAgent>
         return new KeyValuePair<YieldInstruction, System.Action>(delay, operation);
     }
 
-    public static Coroutine WaitOperation(System.Func<bool> waitFor, System.Action operation, MonoBehaviour behaviour = null)
+    public static Coroutine WaitUntil(System.Func<bool> waitFor, System.Action operation, MonoBehaviour behaviour = null)
     {
-        return (behaviour ?? Instance()).StartCoroutine(DoWaitOperation(waitFor, operation));
+        return (behaviour ?? Instance()).StartCoroutine(CoWaitUtil(waitFor, operation));
     }
 
-    private static IEnumerator DoWaitOperation(System.Func<bool> waitFor, System.Action operation = null)
+    private static IEnumerator CoWaitUtil(System.Func<bool> waitFor, System.Action operation = null)
     {
         if (operation != null)
         {
@@ -96,6 +92,23 @@ public class CoroutineAgent : MonoSingleton<CoroutineAgent>
                 }
             }
             operation();
+        }
+    }
+
+    public static Coroutine DoUntil(System.Func<bool> waitFor, System.Action<float> operation, MonoBehaviour behaviour = null)
+    {
+        return (behaviour ?? Instance()).StartCoroutine(CoDoUtil(waitFor, operation));
+    }
+
+    private static IEnumerator CoDoUtil(System.Func<bool> waitFor, System.Action<float> operation = null)
+    {
+        if (waitFor != null)
+        {
+            while (!waitFor())
+            {
+                operation?.Invoke(Time.deltaTime);
+                yield return null;
+            }
         }
     }
 }

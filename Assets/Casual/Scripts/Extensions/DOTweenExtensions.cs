@@ -9,4 +9,19 @@ public static class DOTweenExtensions
     {
         return DOTween.To(() => transform.anchoredPosition, (x) => transform.anchoredPosition = x, target, duration);
     }
+
+    public static Tweener DOAnchoredOffsetY(this RectTransform transform, float offset, float duration)
+    {
+        return transform.DOAnchorPosY(transform.anchoredPosition.y + offset, duration);
+    }
+
+    public static Tweener DOAnchoredOffsetX(this RectTransform transform, float offset, float duration)
+    {
+        return transform.DOAnchorPosX(transform.anchoredPosition.x + offset, duration);
+    }
+
+    public static Vector3 SnapToGrid(this Grid grid, Vector3 worldPosition)
+    {
+        return grid.GetCellCenterWorld(grid.WorldToCell(worldPosition));
+    }
 }

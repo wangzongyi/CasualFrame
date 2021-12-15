@@ -1,5 +1,7 @@
-﻿using UnityEngine;
-using Sirenix.OdinInspector;
+﻿using Sirenix.OdinInspector;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 public enum PublishMode
 {
@@ -10,43 +12,109 @@ public enum PublishMode
 }
 
 /// <summary>
-/// 游戏配置总控
+/// 汤姆猫游戏配置总控
 /// </summary>
-[TypeInfoBox("项目基础设置")]
 public class GameConfigs : SerializedScriptableObject
 {
-    private const string INIT_GAMECONFIG_NAME = "GameConfigs";
-    private const string INIT_GAME_ROOT_PATH = "Assets/Casual";
-    private const string INIT_GAMECONFIG_ASSET_ROOT = "Assets/Resources/" + INIT_GAMECONFIG_NAME + ".asset";
+    public const string INIT_GAMECONFIG_NAME = "GameConfigs";
+    public const string INIT_GAMECONFIG_ASSET_ROOT = GameRoot + "/Resources/" + INIT_GAMECONFIG_NAME + ".asset";
+    public const string GameRoot = "Assets/Casual";
+    public const string AssetRoot = GameRoot + "/Bundle";
+
     public static string BundleFileName = "BundleFile"; //资源的路径所对应的Bundle
-    public static string AssetDir = "AssetBundleManifest";
+    public static string AssetDir = "StreamingAssets";
+
+    public static Vector3 DISABLE_POSITION = Vector3.one * 10000;
 
     public const int TRY_DOWNLOAD_TIMES = 3;
     public const int DDOWNLOAD_TIMEOUT = 30;
     public const int HEART_BEAT_INTERVAL = 60 * 5;
 
-    public static Vector3 DISABLE_POSITION = new Vector3(10000f, 0f, 0f);
-
-    [SerializeField, LabelText("发布模式")]
-    private PublishMode publishMode = PublishMode.Debug;
-    public static PublishMode PublishMode { get { return Instance.publishMode; } }
-    public static bool DebugMode { get { return Instance.publishMode == PublishMode.Debug; } }
-
-    [SerializeField, LabelText("服务器地址"), ValueDropdown("Nets", AppendNextDrawer = true)]
+    [SerializeField, LabelText("服务器地址"), ValueDropdown("Nets", AppendNextDrawer = true, FlattenTreeView = true)]
     private string webURL = "";
     public static string WebURL { get { return Instance.webURL; } }
 
-    [SerializeField, LabelText("项目根目录"), FolderPath, OnValueChanged("OnValueChangeGameRoot")]
-    private string gameRoot = INIT_GAME_ROOT_PATH;
-    public static string GameRoot { get { return Instance.gameRoot; } }
+    public static string ExactWebURL;
 
-    [SerializeField, LabelText("资源根目录"), FolderPath, DisableInEditorMode]
-    private string assetRoot = INIT_GAME_ROOT_PATH + "/Bundle";
-    public static string AssetRoot { get { return Instance.assetRoot; } }
-
-    [SerializeField, LabelText("资源后缀名"), DisableInEditorMode]
+    [SerializeField, LabelText("资源拓展名"), DisableInEditorMode]
     private string extName = ".unity3d";
-    public static string ExtName { get { return Instance.extName; } }
+    public static string ExtName { get { return Instance.extName; } }//素材扩展名
+
+    [SerializeField, LabelText("发布模式")]
+    private PublishMode publishMode = PublishMode.Debug;
+    public static PublishMode PublishMode
+    {
+        get
+        {
+#if UNITY_EDITOR
+            return Instance.publishMode;
+#else
+            return PublishMode.Release;
+#endif
+        }
+    }
+
+    [SerializeField, LabelText("开发者模式")]
+    private bool gameMaker;
+    public static bool GameMaker
+    {
+        get
+        {
+#if UNITY_EDITOR
+            return Instance.gameMaker;
+#else
+            return false;
+#endif
+        }
+    }
+
+    [SerializeField, LabelText("是否打印日志")]
+    private bool logEnabled = false;
+    public static bool LogEnabled { get { return Instance.logEnabled; } }
+
+    [SerializeField, LabelText("默认字体")]
+    private Font defaultFont;
+    public static Font DefaultFont { get { return Instance.defaultFont; } }
+
+    [SerializeField, LabelText("版本"), OnValueChanged("OnVersionChange")]
+    private string version;
+
+    /// <summary>
+    /// 物理长宽比，为手机属性，不可更改
+    /// </summary>
+    public static float AspectRatioPhysical;
+    /// <summary>
+    /// 物理分辨率，为手机属性，不可更改
+    /// </summary>
+    public static Vector2 ScreenSizePhysical;
+    /// <summary>
+    /// 预设长宽比，为策划设定，不可轻易修改
+    /// </summary>
+    public const float AspectRatioPreset = 16.0f / 9;
+    /// <summary>
+    /// 计算所得逻辑长宽比，根据物理属性和策划预设计算所得。服务于屏幕逻辑尺寸和Canvas默认值，可根据实际情况自行调整
+    /// </summary>
+    public static float AspectRatioLogic;
+    /// <summary>
+    /// 预设分辨率，为策划设定，不可轻易修改
+    /// </summary>
+    public static readonly Vector2 ScreenSizePreset = new Vector2(1920, 1080);
+    /// <summary>
+    /// 计算所得逻辑分辨率，根据物理属性和策划预设计算所得。服务于屏幕逻辑尺寸和Canvas默认值，可根据实际情况自行调整
+    /// </summary>
+    public static Vector2 ScreenSizeLogic;
+    /// <summary>
+    /// 逻辑尺寸到物理尺寸转换系数
+    /// </summary>
+    public static Vector2 LogicToPhysicalMul;
+    /// <summary>
+    /// 物理尺寸到逻辑尺寸转换系数，避免频繁使用浮点除法，提高运算效率用
+    /// </summary>
+    public static Vector2 PhysicalToLogicMul;
+    /// <summary>
+    /// Canvas宽高适配值
+    /// </summary>
+    public static float CanvasMathch;
 
     private static GameConfigs instance;
     public static GameConfigs Instance
@@ -75,18 +143,16 @@ public class GameConfigs : SerializedScriptableObject
             return instance;
         }
     }
-
 #if UNITY_EDITOR
-    private static string[] Nets = new string[] { "http://172.27.43.92:8080", "https://www.google.com", "https://" };
-
-    [SerializeField, LabelText("默认字体")]
-    private Font defaultFont;
-    public static Font DefaultFont { get { return Instance.defaultFont; } }
-
-    void OnValueChangeGameRoot()
+    private static string[] Nets = new string[]
     {
-        assetRoot = gameRoot + "/Bundle";
-    }
+        "",
+        "https://"
+    };
 
+    void OnVersionChange()
+    {
+        UnityEditor.PlayerSettings.bundleVersion = version;
+    }
 #endif
 }

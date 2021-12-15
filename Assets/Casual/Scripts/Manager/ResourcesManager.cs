@@ -46,18 +46,27 @@ public enum ExtensionType
     otf,
     ttf,
     png,
+    tga,
     asset,
     mp3,
+    mp4,
     wav,
     ogg,
     bytes,
     controller,
+    json,
+    fbx,
+#if UNITY_EDITOR
+    preset,
+#endif
 }
 
 public class ResourcesManager
 {
     static private Dictionary<string, LoadedAssetInfo> _loadedAssetPool = new Dictionary<string, LoadedAssetInfo>();
     static private Dictionary<object/*<observer>*/, Dictionary<string, int>> _observeHash = new Dictionary<object, Dictionary<string, int>>();
+
+    private const string ASSET_POOL_KEY = "{0}_{1}"/*Path_Type*/;
 
     /// <summary>
     /// 单资源加载：【异步】
@@ -100,32 +109,28 @@ public class ResourcesManager
     }
 
     /// <summary>
-    /// 【异步】资源加载
+    /// 单资源加载：【异步】
     /// </summary>
     /// <typeparam name="T">UnityEngine.Object</typeparam>
     /// <param name="fullAssetPath">绝对路径（包含拓展名）</param>
     /// <param name="callback"></param>
     static public Coroutine LoadAsyncWithFullPath<T>(string fullAssetPath, Action<T> callback, object observer = null) where T : UObject
     {
-        if (!_loadedAssetPool.ContainsKey(fullAssetPath))
+        T loadedAsset = PeekLoadedPool<T>(fullAssetPath);
+        if (loadedAsset)
         {
-            _loadedAssetPool[fullAssetPath] = new LoadedAssetInfo(fullAssetPath);
-        }
-
-        if (_loadedAssetPool[fullAssetPath].LoadedCount > 0)
-        {
-            callback?.Invoke(_loadedAssetPool[fullAssetPath].LoadedObject as T);
+            callback?.Invoke(loadedAsset);
         }
         else
         {
             callback += (obj) =>
             {
-                EnqueueLoadedPool(fullAssetPath, obj, observer);
+                EnqueueLoadedPool<T>(fullAssetPath, obj, observer);
             };
 
             if (GameConfigs.PublishMode == PublishMode.Release)
             {
-                return AssetBundleLoader.Instance().LoadAssetByPath<T>(fullAssetPath, callback); 
+                return AssetBundleLoader.Instance().LoadAssetByPath<T>(fullAssetPath, callback);
             }
             else
             {
@@ -137,7 +142,38 @@ public class ResourcesManager
     }
 
     /// <summary>
-    /// 【同步】资源加载
+    /// 多资源加载：【异步】
+    /// </summary>
+    /// <param name="fullAssetPaths"></param>
+    /// <param name="stepAction"></param>
+    /// <param name="callback"></param>
+    /// <param name="observer"></param>
+    /// <returns></returns>
+    static public Coroutine LoadAsyncWithExtensionPath(ICollection<string> fullAssetPaths, Action<UObject, int> stepAction, Action<UObject[]> callback, object observer = null)
+    {
+        return CoroutineAgent.StartCoroutine(_LoadAsyncWithExtensionPath(fullAssetPaths, stepAction, callback, observer));
+    }
+
+    static private IEnumerator _LoadAsyncWithExtensionPath(ICollection<string> fullAssetPaths, Action<UObject, int> stepAction, Action<UObject[]> callback, object observer = null)
+    {
+        List<UObject> assets = new List<UObject>();
+        foreach (string path in fullAssetPaths)
+        {
+            string assetPath = string.Format("{0}/{1}",GameConfigs.AssetRoot, path);
+            yield return LoadAsyncWithFullPath<UObject>(assetPath, (asset) =>
+            {
+                stepAction?.Invoke(asset, assets.Count);
+                assets.Add(asset);
+            }, observer);
+        }
+
+        yield return null;
+
+        callback?.Invoke(assets.ToArray());
+    }
+
+    /// <summary>
+    /// 单资源加载：【同步】
     /// </summary>
     /// <typeparam name="T">UnityEngine.Object</typeparam>
     /// <param name="assetPath">相对路径</param>
@@ -150,18 +186,24 @@ public class ResourcesManager
         return LoadSyncWithFullPath<T>(assetPath, observer);
     }
 
+    /// <summary>
+    /// 单资源加载:【同步】
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="fullAssetPath"></param>
+    /// <param name="observer"></param>
+    /// <returns></returns>
     static public T LoadSyncWithFullPath<T>(string fullAssetPath, object observer = null) where T : UObject
     {
-        if (_loadedAssetPool.ContainsKey(fullAssetPath) && _loadedAssetPool[fullAssetPath].LoadedCount > 0)
-            return _loadedAssetPool[fullAssetPath].LoadedObject as T;
+        T obj = PeekLoadedPool<T>(fullAssetPath);
 
-        T obj = LoadSyncWithFullPath<T>(fullAssetPath);
-        if (!_loadedAssetPool.ContainsKey(fullAssetPath))
-            _loadedAssetPool[fullAssetPath] = new LoadedAssetInfo(fullAssetPath);
+        if (!obj)
+        {
+            obj = LoadSyncWithFullPath<T>(fullAssetPath);
+            EnqueueLoadedPool<T>(fullAssetPath, obj, observer);
+        }
 
-        EnqueueLoadedPool(fullAssetPath, obj, observer);
-
-        return obj;
+        return NullCheck.IsNotNull(obj, string.Format(LogMessage.ASSET_LOADED_FAILED, fullAssetPath)) ? obj : null;
     }
 
     /// <summary>
@@ -182,16 +224,32 @@ public class ResourcesManager
         }
     }
 
+    static private T PeekLoadedPool<T>(string fullAssetPath) where T : UObject
+    {
+        fullAssetPath = string.Format(ASSET_POOL_KEY, fullAssetPath, typeof(T).ToString());
+
+        if (_loadedAssetPool.ContainsKey(fullAssetPath) && _loadedAssetPool[fullAssetPath].LoadedCount > 0)
+        {
+            return _loadedAssetPool[fullAssetPath].LoadedObject as T;
+        }
+
+        return default(T);
+    }
+
     /// <summary>
     /// 记录已加载的资源
     /// </summary>
     /// <param name="fullAssetPath">绝对路径（包含拓展名）</param>
     /// <param name="obj"></param>
     /// <param name="observer"></param>
-    static private void EnqueueLoadedPool(string fullAssetPath, UObject obj, object observer)
+    static private void EnqueueLoadedPool<T>(string fullAssetPath, UObject obj, object observer)
     {
-        if (_loadedAssetPool.ContainsKey(fullAssetPath))
-            _loadedAssetPool[fullAssetPath].Loaded(obj);
+        fullAssetPath = string.Format(ASSET_POOL_KEY, fullAssetPath, typeof(T).ToString());
+
+        if (!_loadedAssetPool.ContainsKey(fullAssetPath))
+            _loadedAssetPool[fullAssetPath] = new LoadedAssetInfo(fullAssetPath);
+
+        _loadedAssetPool[fullAssetPath].Loaded(obj);
 
         if (observer == null)
             return;
@@ -221,9 +279,11 @@ public class ResourcesManager
         }
     }
 
-    static public void UnloadAsset(object observer, string fullAssetPath)
+    static public void UnloadAsset<T>(object observer, string fullAssetPath)
     {
-        if(_observeHash.ContainsKey(observer) && _observeHash[observer].ContainsKey(fullAssetPath))
+        fullAssetPath = string.Format(ASSET_POOL_KEY, fullAssetPath, typeof(T).ToString());
+
+        if (_observeHash.ContainsKey(observer) && _observeHash[observer].ContainsKey(fullAssetPath))
         {
             UnloadAsset(fullAssetPath, _observeHash[observer][fullAssetPath]);
         }
@@ -234,12 +294,17 @@ public class ResourcesManager
     /// </summary>
     /// <param name="fullAssetPath">绝对路径</param>
     /// <param name="dec">计数</param>
-    static public void UnloadAsset(string fullAssetPath, int dec)
+    static private void UnloadAsset(string fullAssetPath, int dec)
     {
         if (!string.IsNullOrEmpty(fullAssetPath) && _loadedAssetPool.ContainsKey(fullAssetPath))
         {
             _loadedAssetPool[fullAssetPath].Unload(AssetBundleLoader.Instance().UnloadAssetBundleByAssetPath, dec);
         }
+    }
+
+    static public void UnloadAsset<T>(string fullAssetPath, int dec)
+    {
+        UnloadAsset(string.Format(ASSET_POOL_KEY, fullAssetPath, typeof(T).ToString()), dec);
     }
 
     static private T LoadDebug<T>(string assetPath) where T : UObject
@@ -258,7 +323,10 @@ public class ResourcesManager
     {
 #if UNITY_EDITOR
         T obj = UnityEditor.AssetDatabase.LoadAssetAtPath<T>(path);
-        callback(obj);
+        if(NullCheck.IsNotNull(obj, string.Format(LogMessage.ASSET_LOADED_FAILED, path)))
+        {
+            callback(obj);
+        }
         return null;
 #else
         return CoroutineAgent.StartCoroutine(_ResourcesLoad(path, callback));
@@ -277,15 +345,34 @@ public class ResourcesManager
     }
 
 #if UNITY_EDITOR
+
+    /// <summary>
+    /// 仅在Editor下有效
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="assetPath"></param>
+    /// <param name="rType"></param>
+    /// <returns></returns>
     public static T LoadAssetAtPath<T>(string assetPath, ExtensionType rType) where T : UObject
     {
         assetPath = string.Format("{0}/{1}.{2}", GameConfigs.AssetRoot, assetPath, rType);
         return LoadAssetAtPath<T>(assetPath);
     }
 
+    /// <summary>
+    /// 仅在Editor下有效
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="fullAssetPath"></param>
+    /// <returns></returns>
     public static T LoadAssetAtPath<T>(string fullAssetPath) where T : UObject
     {
         return UnityEditor.AssetDatabase.LoadAssetAtPath<T>(fullAssetPath);
     }
 #endif
+    public static void Dispose()
+    {
+        _loadedAssetPool.Clear();
+        _observeHash.Clear();
+    }
 }

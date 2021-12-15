@@ -1,12 +1,32 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public abstract class BaseBehaviour : MonoBehaviour
 {
+    protected virtual List<string> LoadAssetPathList { get; set; }
+
+    private void Awake()
+    {
+        OnAwake();
+    }
+
+    protected virtual void OnAwake()
+    {
+        InitComponent();
+    }
+
+    /// <summary>
+    /// 资源初始化，子类一般需要实现
+    /// </summary>
+    protected virtual void InitComponent() { }
+
     protected virtual void OnEnable()
     {
         RegisterEvents();
     }
+
+    protected virtual void InitAssetPathList() { }
 
     protected void AddEvent(string eventType, Action method)
     {
@@ -32,27 +52,27 @@ public abstract class BaseBehaviour : MonoBehaviour
         EventManager.AddEvent(eventType, this, method);
     }
 
-    protected void ExcuteEvent(string eventType)
+    protected void BrocastEvent(string eventType)
     {
         EventManager.Brocast(eventType);
     }
 
-    protected void ExcuteEvent<T>(string eventType, T param)
+    protected void BrocastEvent<T>(string eventType, T param)
     {
         EventManager.Brocast(eventType, param);
     }
 
-    protected void ExcuteEvent<T1, T2>(string eventType, T1 param, T2 param2)
+    protected void BrocastEvent<T1, T2>(string eventType, T1 param, T2 param2)
     {
         EventManager.Brocast(eventType, param, param2);
     }
 
-    protected void ExcuteEvent<T1, T2, T3>(string eventType, T1 param, T2 param2, T3 param3)
+    protected void BrocastEvent<T1, T2, T3>(string eventType, T1 param, T2 param2, T3 param3)
     {
         EventManager.Brocast(eventType, param, param2, param3);
     }
 
-    protected void ExcuteEvent<T1, T2, T3, T4>(string eventType, T1 param, T2 param2, T3 param3, T4 param4)
+    protected void BrocastEvent<T1, T2, T3, T4>(string eventType, T1 param, T2 param2, T3 param3, T4 param4)
     {
         EventManager.Brocast(eventType, param, param2, param3, param4);
     }
@@ -75,7 +95,7 @@ public abstract class BaseBehaviour : MonoBehaviour
         GameObjectAgent.ReturnObject(this, inst);
     }
 
-    protected void ReturnObjects()
+    public void ReturnObjects()
     {
         GameObjectAgent.ReturnObjects(this);
     }
@@ -91,6 +111,7 @@ public abstract class BaseBehaviour : MonoBehaviour
     protected virtual void OnDisable()
     {
         RemoveEvents();
+        StopAllCoroutines();
     }
 
     protected virtual void OnDestroy()
